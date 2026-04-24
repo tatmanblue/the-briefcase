@@ -1,36 +1,143 @@
 # The Briefcase
 
-An MCP server for agents to read, request, search and update files not in the agents working directory.  
+An MCP server that gives AI agents controlled access to files outside their working directory.
 
-Version 1 only supports local file system.  
+## What is The Briefcase?
 
-# Status
-Prototype/MVP Prototype  
+AI agents — such as Claude Code, GitHub Copilot, or any MCP-compatible client — typically only see files inside their current working directory. The Briefcase solves this by acting as a secure file courier: it exposes a curated set of directories to agents through a structured API, without ever revealing the underlying file system paths.
 
-This project is in the conceptual stages.  Working through the idea and exploring fesibility.  
+You configure which directories to share. The Briefcase assigns each file a stable ID (a GUID). Agents work entirely through those IDs — they never see real paths, cannot traverse the directory tree, and cannot access anything outside what you explicitly shared.
 
-File Revision
-2026.04.24
+## How It Works
 
-# License
-The license included applies only to the files in this repo. As the documentation states in the repo readme.md, specific 3rd party assets are required to build and run the libraries and demos in this project. The license here does not apply to 3rd party assets. You agree to purchase those assets and abide by their licensing terms.
+```
+  Your file system          The Briefcase MCP Server          AI Agent
+  ──────────────           ───────────────────────────       ─────────
+  C:\docs\notes.txt  ───►  briefcase://file/{guid}  ───►   list_files
+  C:\docs\report.md  ───►  briefcase://file/{guid}  ───►   read_file
+  D:\shared\data.csv ───►  briefcase://file/{guid}  ───►   (notifications)
+```
 
-   Copyright 2026 Matthew Raffel
+1. You tell The Briefcase which directories to watch via the `BRIEFCASE_PATHS` environment variable.
+2. On startup, it scans those directories recursively and assigns each file a stable GUID.
+3. The GUID-to-path mapping is saved to `registry.json` so IDs survive server restarts — agents can hold onto a file's ID indefinitely.
+4. Agents call `list_files` to discover what's available and `read_file` to retrieve content.
+5. When files change on disk, The Briefcase sends MCP notifications so agents can react in real time.
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+## Status
 
-     http://www.apache.org/licenses/LICENSE-2.0
+Version 1 — Prototype. Local file system only.
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+## Setup
 
+### 1. Prerequisites
 
-# Legal
-If you have any questions about the content of the repository, please email matt.raffel@gmail.com. I can assure you all content has been developed by me or purchased and licensed to me. Proof will be made available on request. Repeated DCMA counterfit and harassment claims will result in counter suits per Section 512(f) of the DMCA penalties for misrepresentation can include actual damages and attorney’s fees.
+- .NET 10 SDK
 
+### 2. Configure environment
 
+Copy the example env file and fill in your values:
+
+```
+cp src/Briefcase/.env.example src/Briefcase/.env
+```
+
+Edit `src/Briefcase/.env`:
+
+```env
+# One or more directories to expose, separated by semicolons
+BRIEFCASE_PATHS=C:\Users\you\Documents;D:\projects\notes
+
+# Where to store the persistent file ID registry
+BRIEFCASE_DATA_PATH=C:\Users\you\.briefcase
+```
+
+### 3. Wire it into your MCP client
+
+**Claude Code** — add to your `claude_mcp_config.json` (or project-level `.mcp.json`):
+
+```json
+{
+  "servers": {
+    "briefcase": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["run", "--project", "C:\\path\\to\\the-briefcase\\src\\Briefcase"]
+    }
+  }
+}
+```
+
+**VS Code** — create `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "briefcase": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["run", "--project", "C:\\path\\to\\the-briefcase\\src\\Briefcase"]
+    }
+  }
+}
+```
+
+## Available Tools
+
+### `list_files`
+
+Returns all files currently known to The Briefcase. No file system paths are included — only the information the agent needs.
+
+**Returns:**
+```json
+[
+  {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "name": "notes.txt",
+    "size": 1024,
+    "lastModified": "2026-04-24T10:00:00Z"
+  }
+]
+```
+
+### `read_file`
+
+Reads the content of a file by its ID.
+
+**Parameters:**
+- `id` — the GUID returned by `list_files`
+
+**Returns:**
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "notes.txt",
+  "size": 1024,
+  "lastModified": "2026-04-24T10:00:00Z",
+  "content": "..."
+}
+```
+
+## File Change Notifications
+
+The Briefcase watches configured directories in real time using `FileSystemWatcher`. When files change, it sends standard MCP resource notifications to connected agents:
+
+| Event | MCP Notification |
+|---|---|
+| File created, deleted, or renamed | `notifications/resources/list_changed` |
+| File content modified | `notifications/resources/updated` |
+
+Agents that support MCP resource subscriptions can react immediately when a file they care about changes, without polling.
+
+## Roadmap
+
+- [ ] Search files by name and content
+- [ ] Update file content
+- [ ] Cloud storage backends (e.g. OneDrive, Google Drive)
+
+## License
+
+Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
+
+## File Version
+1.0.0 
