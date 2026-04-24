@@ -4,6 +4,8 @@ An MCP server that gives AI agents controlled access to files outside their work
 
 ## What is The Briefcase?
 
+![The Briefcase](docs/logo.svg)  
+
 AI agents — such as Claude Code, GitHub Copilot, or any MCP-compatible client — typically only see files inside their current working directory. The Briefcase solves this by acting as a secure file courier: it exposes a curated set of directories to agents through a structured API, without ever revealing the underlying file origins.
 
 You configure which directories to share. The Briefcase assigns each file a stable ID (a GUID). Agents work entirely through those IDs — they never see real paths, cannot traverse the directory tree, and cannot access anything outside what you explicitly shared.
