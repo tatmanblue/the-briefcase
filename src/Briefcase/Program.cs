@@ -8,8 +8,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-// Load .env file from the application directory if present
-Env.Load(Path.Combine(AppContext.BaseDirectory, ".env"));
+var envFile = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+if (File.Exists(envFile)) 
+    Env.Load(envFile);
+else 
+    Env.Load(Path.Combine(AppContext.BaseDirectory, ".env"));
 
 var builder = Host.CreateApplicationBuilder(args);
 
