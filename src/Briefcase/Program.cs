@@ -9,26 +9,31 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-var envFile = Path.Combine(Directory.GetCurrentDirectory(), ".env");
-if (File.Exists(envFile))
-    Env.Load(envFile);
-else
-    Env.Load(Path.Combine(AppContext.BaseDirectory, ".env"));
+// Load .env — try the working directory first, then the executable directory.
+// Track which file was loaded so the validator can report it clearly.
+string? envFileLoaded = null;
+var cwdEnvFile = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+var baseEnvFile = Path.Combine(AppContext.BaseDirectory, ".env");
 
-var builder = Host.CreateApplicationBuilder(args);
+if (File.Exists(cwdEnvFile))
+{
+    Env.Load(cwdEnvFile);
+    envFileLoaded = cwdEnvFile;
+}
+else if (File.Exists(baseEnvFile))
+{
+    Env.Load(baseEnvFile);
+    envFileLoaded = baseEnvFile;
+}
 
-// Configure all logs to go to stderr (stdout is used for the MCP protocol messages).
-builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
-
-// Build AppSettings from environment variables
+// Read environment variables — no throwing here; validation reports problems clearly.
 var briefcasePaths = (Environment.GetEnvironmentVariable("BRIEFCASE_PATHS") ?? string.Empty)
     .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-var dataPath = Environment.GetEnvironmentVariable("BRIEFCASE_DATA_PATH")
-    ?? throw new InvalidOperationException("BRIEFCASE_DATA_PATH environment variable is required.");
+var dataPath = Environment.GetEnvironmentVariable("BRIEFCASE_DATA_PATH") ?? string.Empty;
 
 var ignoreFilePath = Environment.GetEnvironmentVariable("BRIEFCASE_IGNORE_FILE")
-    ?? Path.Combine(dataPath, ".briefcase-ignore");
+    ?? (string.IsNullOrEmpty(dataPath) ? string.Empty : Path.Combine(dataPath, ".briefcase-ignore"));
 
 var appSettings = new AppSettings
 {
@@ -36,6 +41,15 @@ var appSettings = new AppSettings
     DataPath = dataPath,
     IgnoreFilePath = ignoreFilePath
 };
+
+// Validate configuration and exit with a clear message if anything is wrong.
+if (!StartupValidator.Validate(appSettings, envFileLoaded))
+    Environment.Exit(1);
+
+var builder = Host.CreateApplicationBuilder(args);
+
+// Configure all logs to go to stderr (stdout is used for the MCP protocol messages).
+builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
 
 builder.Services.AddSingleton(appSettings);
 builder.Services.AddSingleton<IgnoreRules>(sp =>
