@@ -1,4 +1,5 @@
 using Briefcase.Configuration;
+using Briefcase.Exclusions;
 using Briefcase.Notifications;
 using Briefcase.Registry;
 using Briefcase.Tools;
@@ -9,9 +10,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 var envFile = Path.Combine(Directory.GetCurrentDirectory(), ".env");
-if (File.Exists(envFile)) 
+if (File.Exists(envFile))
     Env.Load(envFile);
-else 
+else
     Env.Load(Path.Combine(AppContext.BaseDirectory, ".env"));
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -26,13 +27,19 @@ var briefcasePaths = (Environment.GetEnvironmentVariable("BRIEFCASE_PATHS") ?? s
 var dataPath = Environment.GetEnvironmentVariable("BRIEFCASE_DATA_PATH")
     ?? throw new InvalidOperationException("BRIEFCASE_DATA_PATH environment variable is required.");
 
+var ignoreFilePath = Environment.GetEnvironmentVariable("BRIEFCASE_IGNORE_FILE")
+    ?? Path.Combine(dataPath, ".briefcase-ignore");
+
 var appSettings = new AppSettings
 {
     BriefcasePaths = briefcasePaths,
-    DataPath = dataPath
+    DataPath = dataPath,
+    IgnoreFilePath = ignoreFilePath
 };
 
 builder.Services.AddSingleton(appSettings);
+builder.Services.AddSingleton<IgnoreRules>(sp =>
+    new IgnoreRules(appSettings.IgnoreFilePath, sp.GetRequiredService<ILogger<IgnoreRules>>()));
 builder.Services.AddSingleton<FileRegistry>();
 builder.Services.AddSingleton<FileWatcher>();
 builder.Services.AddHostedService<NotificationDispatcher>();

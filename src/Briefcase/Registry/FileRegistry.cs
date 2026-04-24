@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Briefcase.Configuration;
+using Briefcase.Exclusions;
 using Microsoft.Extensions.Logging;
 
 namespace Briefcase.Registry;
@@ -10,13 +11,17 @@ public class FileRegistry
     private readonly Dictionary<Guid, RegistryEntry> entriesById = new();
     private readonly Dictionary<string, Guid> pathToId = new();
     private readonly object lockObject = new();
+    private readonly IgnoreRules ignoreRules;
+    private readonly string[] watchedRoots;
     private readonly ILogger<FileRegistry> logger;
 
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
-    public FileRegistry(AppSettings settings, ILogger<FileRegistry> logger)
+    public FileRegistry(AppSettings settings, IgnoreRules ignoreRules, ILogger<FileRegistry> logger)
     {
+        this.ignoreRules = ignoreRules;
         this.logger = logger;
+        watchedRoots = settings.BriefcasePaths;
         Directory.CreateDirectory(settings.DataPath);
         registryFilePath = Path.Combine(settings.DataPath, "registry.json");
         Load();
@@ -37,8 +42,14 @@ public class FileRegistry
             return entriesById.TryGetValue(id, out var entry) ? entry : null;
     }
 
-    public Guid AddOrUpdate(string absolutePath)
+    public Guid? AddOrUpdate(string absolutePath)
     {
+        if (ignoreRules.IsExcluded(absolutePath, watchedRoots))
+        {
+            logger.LogDebug("Skipping excluded file: {Path}", absolutePath);
+            return null;
+        }
+
         lock (lockObject)
         {
             if (pathToId.TryGetValue(absolutePath, out var existingId))
@@ -75,10 +86,21 @@ public class FileRegistry
                 return;
 
             pathToId.Remove(oldPath);
-            entriesById[id] = new RegistryEntry { Id = id, AbsolutePath = newPath };
-            pathToId[newPath] = id;
+
+            if (ignoreRules.IsExcluded(newPath, watchedRoots))
+            {
+                // New name matches an exclusion — drop it from the registry entirely
+                entriesById.Remove(id);
+                logger.LogDebug("Renamed file matches exclusion, removed from registry: {Path}", newPath);
+            }
+            else
+            {
+                entriesById[id] = new RegistryEntry { Id = id, AbsolutePath = newPath };
+                pathToId[newPath] = id;
+                logger.LogDebug("Renamed file in registry: {OldPath} -> {NewPath}", oldPath, newPath);
+            }
+
             Save();
-            logger.LogDebug("Renamed file in registry: {OldPath} -> {NewPath}", oldPath, newPath);
         }
     }
 
@@ -123,6 +145,12 @@ public class FileRegistry
             {
                 if (pathToId.ContainsKey(file))
                     continue;
+
+                if (ignoreRules.IsExcluded(file, watchedRoots))
+                {
+                    logger.LogDebug("Excluding file during scan: {Path}", file);
+                    continue;
+                }
 
                 var entry = new RegistryEntry { Id = Guid.NewGuid(), AbsolutePath = file };
                 entriesById[entry.Id] = entry;
