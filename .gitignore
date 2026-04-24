@@ -10,6 +10,7 @@
 # editor and CLAUDE directories
 .idea/
 .claude/
+.env
 
 # Build results
 [Dd]ebug/
