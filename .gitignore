@@ -9,7 +9,7 @@
 
 # editor and CLAUDE directories
 .idea/
-
+.claude/
 
 # Build results
 [Dd]ebug/

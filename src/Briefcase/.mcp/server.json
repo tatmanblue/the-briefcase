@@ -1,0 +1,27 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "description": "An MCP server that gives agents controlled access to files outside their working directory.",
+  "name": "the-briefcase",
+  "version": "0.1.0-alpha",
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "TheBriefcase",
+      "version": "0.1.0-alpha",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": [
+        {
+          "name": "BRIEFCASE_PATHS",
+          "description": "Semicolon-separated list of directories to expose to agents."
+        },
+        {
+          "name": "BRIEFCASE_DATA_PATH",
+          "description": "Directory where the file ID registry is persisted."
+        }
+      ]
+    }
+  ]
+}
