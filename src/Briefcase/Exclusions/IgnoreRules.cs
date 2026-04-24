@@ -79,7 +79,12 @@ public class IgnoreRules
                 continue;
 
             if (line.Contains('/'))
-                pathPatterns.Add(line.TrimStart('/'));
+            {
+                var pattern = line.TrimStart('/');
+                if (pattern.EndsWith('/'))
+                    pattern += "**";
+                pathPatterns.Add(pattern);
+            }
             else
                 namePatterns.Add(line);
 

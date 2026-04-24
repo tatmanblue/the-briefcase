@@ -160,10 +160,10 @@ public class FileRegistry
 
         // Prune entries for files that no longer exist on disk
         var stale = entriesById.Values
-            .Where(e => !File.Exists(e.AbsolutePath))
+            .Where(e => !File.Exists(e.AbsolutePath) || ignoreRules.IsExcluded(e.AbsolutePath, watchedRoots))
             .Select(e => e.Id)
             .ToList();
-
+        
         foreach (var id in stale)
         {
             var stalePath = entriesById[id].AbsolutePath;
