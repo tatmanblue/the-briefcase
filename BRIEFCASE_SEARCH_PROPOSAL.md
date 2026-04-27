@@ -26,7 +26,7 @@ Search is performed at query time by scanning the registry and, for content sear
 
 **How it works:**
 - Filename search: in-memory string matching against `RegistryEntry.Name` — instant.
-- Content search: iterate registered files, read each as text, scan for the query string. Binary files and files over a configurable size limit are skipped.
+- Content search: iterate registered files, read each eligible text file, scan for the query string. Only `.md` and `.txt` files are scanned; files over a configurable size limit are skipped.
 
 **Pros:**
 - Zero additional storage — no new files beyond `registry.json`.
@@ -49,7 +49,7 @@ Extend Option A with a lazy-built, per-file word-set cache stored in `search-cac
 - On first content search (or on startup if configured), extract the set of unique lowercase words from each text file and store: `{ fileId, lastModifiedUtc, words: [...] }`.
 - On subsequent searches, use the cached word set instead of re-reading the file.
 - FileWatcher change events mark a cache entry as dirty; it is rebuilt on next search or proactively in the background.
-- Binary files and oversized files are excluded (same as Option A).
+- Only `.md` and `.txt` files are indexed (same as Option A).
 
 **Storage estimate:** roughly 2–8 KB per file (word set only, no positions or frequencies). A 500-file collection would produce a ~1–4 MB cache file — modest.
 
@@ -84,24 +84,41 @@ During file registration or change events, call an LLM (e.g., via the Claude API
 
 ---
 
+## Design Decisions
+
+The following questions were resolved before finalizing the recommendation:
+
+1. **Collection size** — A typical Briefcase deployment is expected to hold hundreds of files. Option A's query-time scan is acceptable at this scale; no optimization beyond that is warranted for now.
+
+2. **File types** — Content search is limited to `.md` and `.txt` files. Other file types (PDFs, images, binaries, Word docs) are skipped during content scanning. Name search always covers all registered files regardless of type.
+
+3. **Match semantics** — Substring matching within words is the default (e.g., `query = "auth"` matches files containing "authentication" or "nauther"). Whole-word matching is available as an opt-in mode via the `matchMode` parameter. Default is `"substring"`.
+
+4. **Relevance ranking** — A flat match/no-match result is sufficient. No frequency-based ranking needed.
+
+5. **Latency tolerance** — 1–3 seconds for a content search across a large collection is acceptable. No additional optimization is required for V2.
+
+---
+
 ## Recommendation
 
 **Implement Option A now; design the `search_files` tool interface to be forward-compatible with Option B.**
 
-Option A covers the vast majority of real agent use cases with minimal complexity and zero storage cost. The interface should be designed so that adding Option B later is purely additive (a new env var to enable caching, no tool API changes).
+Option A covers the vast majority of real agent use cases with minimal complexity and zero storage cost. The interface is designed so that adding Option B later is purely additive (a new env var to enable caching, no tool API changes). Content search is scoped to `.md` and `.txt` files only.
 
 ---
 
 ## Proposed `search_files` Tool Interface
 
 ```
-search_files(query, searchIn?, limit?, sort?)
+search_files(query, searchIn?, matchMode?, limit?, sort?)
 ```
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `query` | string | required | Substring to search for. Case-insensitive. |
+| `query` | string | required | Text to search for. Case-insensitive. |
 | `searchIn` | string | `"both"` | `"name"` — filename only; `"content"` — file contents only; `"both"` — name first, then content |
+| `matchMode` | string | `"substring"` | `"substring"` — matches anywhere within a word (e.g., "auth" matches "authentication"); `"word"` — whole word only |
 | `limit` | int? | server default | Same semantics as `list_files`. Negative or omitted = use `BRIEFCASE_SEARCH_DEFAULT_LIMIT`. |
 | `sort` | string? | `"modified_desc"` | Same options as `list_files`: `modified_desc`, `modified_asc`, `name_asc`, `name_desc`, `default`. |
 
@@ -135,7 +152,7 @@ search_files(query, searchIn?, limit?, sort?)
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `BRIEFCASE_SEARCH_DEFAULT_LIMIT` | No | `25` | Default max results for `search_files`. Negative = no limit. |
-| `BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB` | No | `512` | Files larger than this (in KB) are skipped during content search. Prevents the server from reading huge binaries. |
+| `BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB` | No | `512` | Files larger than this (in KB) are skipped during content search. |
 
 ---
 
@@ -144,38 +161,28 @@ search_files(query, searchIn?, limit?, sort?)
 **New files:**
 - `src/Briefcase/Tools/SearchFilesTool.cs`
 
-**No changes required to:**
-- `FileRegistry` — `GetAll()` already provides everything needed.
+**Changes required to:**
 - `AppSettings` — two new properties (`SearchDefaultLimit`, `SearchMaxFileSizeKb`).
 - `Program.cs` — read two new env vars; register `SearchFilesTool`.
+
+**No changes required to:**
+- `FileRegistry` — `GetAll()` already provides everything needed.
 
 **Core logic:**
 
 ```
 1. Get all entries from registry.
-2. For each entry:
-   a. Check name match (if searchIn is "name" or "both").
-   b. If file is text and within size limit, check content match (if searchIn is "content" or "both").
-   c. Skip binary files (detect via null bytes in first 512 bytes).
-3. Collect matches with matchedIn metadata.
-4. Sort and apply limit (same helpers as list_files).
-5. Return serialized results.
+2. For name search (searchIn is "name" or "both"):
+   a. Apply matchMode to entry.Name — substring or whole-word.
+3. For content search (searchIn is "content" or "both"):
+   a. Skip files whose extension is not .md or .txt.
+   b. Skip files whose size exceeds BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB.
+   c. Read file contents and apply matchMode to the text.
+4. Collect matches with matchedIn metadata ("name", "content", or "both").
+5. Sort and apply limit (same helpers as list_files).
+6. Return serialized results.
 ```
 
-Binary detection is cheap: read the first 512 bytes and check for null bytes. This reliably excludes executables, images, archives, and other non-text formats.
-
----
-
-## Open Questions
-
-Before implementation, answers to these would sharpen the design:
-
-1. **Collection size** — roughly how many files does a typical Briefcase deployment contain? (Dozens? Hundreds? Thousands?) This determines whether Option A's query-time scan is acceptable long-term.
-
-2. **File types** — are the files predominantly text (markdown, code, plain text, CSV) or a mix that includes binaries (PDFs, images, Word docs)? If PDFs are common, content search would miss them unless a PDF text-extraction library is added.
-
-3. **Match semantics** — should `query = "auth"` match files containing the word "authentication"? (Substring matching within words.) Or only files containing the exact token "auth"? Substring matching is more useful but slightly slower.
-
-4. **Relevance ranking** — is a flat match/no-match result sufficient, or should results be ranked by how many times the query appears in the file?
-
-5. **Latency tolerance** — is a 1–3 second response acceptable for a content search across a large collection, or does it need to feel instant?
+**matchMode implementation:**
+- `"substring"`: `fileText.Contains(query, StringComparison.OrdinalIgnoreCase)`
+- `"word"`: use a regex `\bquery\b` with `RegexOptions.IgnoreCase` (escape the query string before use)
