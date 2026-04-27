@@ -32,14 +32,14 @@ var briefcasePaths = (Environment.GetEnvironmentVariable("BRIEFCASE_PATHS") ?? s
 
 var dataPath = Environment.GetEnvironmentVariable("BRIEFCASE_DATA_PATH") ?? string.Empty;
 
-var newFilesDataPath = Environment.GetEnvironmentVariable("BRIEFCASE_NEW_FILES_DATA_PATH")
-    ?? (string.IsNullOrEmpty(dataPath) ? string.Empty : Path.Combine(dataPath, "new"));
+var newPath = Environment.GetEnvironmentVariable("BRIEFCASE_NEW_PATH")
+    ?? (briefcasePaths.Length > 0 ? Path.Combine(briefcasePaths[0], "new") : string.Empty);
 
-if (!string.IsNullOrEmpty(newFilesDataPath))
+if (!string.IsNullOrEmpty(newPath))
 {
-    Directory.CreateDirectory(newFilesDataPath);
-    if (!briefcasePaths.Contains(newFilesDataPath, StringComparer.OrdinalIgnoreCase))
-        briefcasePaths = [.. briefcasePaths, newFilesDataPath];
+    Directory.CreateDirectory(newPath);
+    if (!briefcasePaths.Contains(newPath, StringComparer.OrdinalIgnoreCase))
+        briefcasePaths = [.. briefcasePaths, newPath];
 }
 
 var ignoreFilePath = Environment.GetEnvironmentVariable("BRIEFCASE_IGNORE_FILE")
@@ -49,7 +49,7 @@ var appSettings = new AppSettings
 {
     BriefcasePaths = briefcasePaths,
     DataPath = dataPath,
-    NewFilesDataPath = newFilesDataPath,
+    NewPath = newPath,
     IgnoreFilePath = ignoreFilePath
 };
 

@@ -4,6 +4,6 @@ public class AppSettings
 {
     public string[] BriefcasePaths { get; init; } = [];
     public string DataPath { get; init; } = string.Empty;
-    public string NewFilesDataPath { get; init; } = string.Empty;
+    public string NewPath { get; init; } = string.Empty;
     public string IgnoreFilePath { get; init; } = string.Empty;
 }

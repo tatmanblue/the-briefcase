@@ -23,14 +23,14 @@ internal class CreateFileTool
         [Description("The file name, including extension (e.g. 'notes.txt'). Path separators are stripped.")] string name,
         [Description("The full content of the new file.")] string content)
     {
-        if (string.IsNullOrEmpty(settings.NewFilesDataPath))
-            return JsonSerializer.Serialize(new { error = "New-files directory is not configured (BRIEFCASE_NEW_FILES_DATA_PATH)." });
+        if (string.IsNullOrEmpty(settings.NewPath))
+            return JsonSerializer.Serialize(new { error = "New-files directory is not configured (BRIEFCASE_NEW_PATH)." });
 
         var safeName = Path.GetFileName(name);
         if (string.IsNullOrWhiteSpace(safeName))
             return JsonSerializer.Serialize(new { error = "Invalid file name." });
 
-        var absolutePath = Path.Combine(settings.NewFilesDataPath, safeName);
+        var absolutePath = Path.Combine(settings.NewPath, safeName);
 
         if (File.Exists(absolutePath))
             return JsonSerializer.Serialize(new { error = $"A file named '{safeName}' already exists. Use update_file to overwrite it." });

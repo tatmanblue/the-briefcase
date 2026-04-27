@@ -54,8 +54,8 @@ BRIEFCASE_PATHS=C:\Users\you\Documents;D:\projects\notes
 # Where to store the persistent file ID registry
 BRIEFCASE_DATA_PATH=C:\Users\you\.briefcase
 
-# Where agent-created files are stored (optional, defaults to {BRIEFCASE_DATA_PATH}\new)
-BRIEFCASE_NEW_FILES_DATA_PATH=C:\Users\you\.briefcase\new
+# Where agent-created files are stored (optional, defaults to {first BRIEFCASE_PATHS entry}\new)
+BRIEFCASE_NEW_PATH=C:\Users\you\Documents\new
 ```
 
 ### 3. Wire it into your MCP client
@@ -126,7 +126,7 @@ Reads the content of a file by its ID.
 
 ### `create_file`
 
-Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_FILES_DATA_PATH` and made immediately available to all agents.
+Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_PATH` and made immediately available to all agents.
 
 **Parameters:**
 - `name` — filename including extension (e.g. `notes.txt`). Path separators are stripped.

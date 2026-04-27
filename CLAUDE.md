@@ -41,7 +41,7 @@ All V1 and V1.1 features are implemented and the project builds cleanly.
 |---|---|---|
 | `BRIEFCASE_PATHS` | Yes | Semicolon-separated list of directories to expose (recursive) |
 | `BRIEFCASE_DATA_PATH` | Yes | Directory where `registry.json` is stored |
-| `BRIEFCASE_NEW_FILES_DATA_PATH` | No | Where agent-created files are stored. Defaults to `{BRIEFCASE_DATA_PATH}\new` |
+| `BRIEFCASE_NEW_PATH` | No | Where agent-created files are stored (single directory). Defaults to `{first BRIEFCASE_PATHS entry}\new` |
 
 Copy `src/Briefcase/.env.example` to `src/Briefcase/.env` to configure locally.
 

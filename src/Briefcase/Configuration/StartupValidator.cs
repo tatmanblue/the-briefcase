@@ -19,8 +19,8 @@ public static class StartupValidator
             valid = false;
         }
 
-        if (!string.IsNullOrEmpty(settings.NewFilesDataPath))
-            Console.Error.WriteLine($"[Briefcase] New files directory: {settings.NewFilesDataPath}");
+        if (!string.IsNullOrEmpty(settings.NewPath))
+            Console.Error.WriteLine($"[Briefcase] New files directory: {settings.NewPath}");
 
         if (settings.BriefcasePaths.Length == 0)
         {
