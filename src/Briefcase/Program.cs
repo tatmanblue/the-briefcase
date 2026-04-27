@@ -45,12 +45,18 @@ if (!string.IsNullOrEmpty(newPath))
 var ignoreFilePath = Environment.GetEnvironmentVariable("BRIEFCASE_IGNORE_FILE")
     ?? (string.IsNullOrEmpty(dataPath) ? string.Empty : Path.Combine(dataPath, ".briefcase-ignore"));
 
+var listFilesDefaultLimit = int.TryParse(
+    Environment.GetEnvironmentVariable("BRIEFCASE_LIST_DEFAULT_LIMIT"), out var parsedLimit)
+    ? parsedLimit
+    : -1;
+
 var appSettings = new AppSettings
 {
     BriefcasePaths = briefcasePaths,
     DataPath = dataPath,
     NewPath = newPath,
-    IgnoreFilePath = ignoreFilePath
+    IgnoreFilePath = ignoreFilePath,
+    ListFilesDefaultLimit = listFilesDefaultLimit
 };
 
 // Validate configuration and exit with a clear message if anything is wrong.

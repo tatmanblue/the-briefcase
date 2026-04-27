@@ -26,7 +26,7 @@ Transport: stdio.
 All V1 and V1.1 features are implemented and the project builds cleanly.
 
 ## Implemented
-- `list_files` MCP tool — returns file IDs, names, sizes, and last-modified timestamps. No file system paths are exposed.
+- `list_files` MCP tool — returns file IDs, names, sizes, and last-modified timestamps. No file system paths are exposed. Supports optional `limit` (max results) and `sort` (`modified_desc` default, `modified_asc`, `name_asc`, `name_desc`, `default`). Server-side default limit is controlled by `BRIEFCASE_LIST_DEFAULT_LIMIT`.
 - `read_file` MCP tool — returns file content plus metadata by GUID.
 - `create_file` MCP tool — agents supply a filename and content; the file is written to `BRIEFCASE_NEW_FILES_DATA_PATH` and registered immediately.
 - `update_file` MCP tool — agents supply a GUID and new content; the entire file is replaced in-place.
@@ -42,6 +42,7 @@ All V1 and V1.1 features are implemented and the project builds cleanly.
 | `BRIEFCASE_PATHS` | Yes | Semicolon-separated list of directories to expose (recursive) |
 | `BRIEFCASE_DATA_PATH` | Yes | Directory where `registry.json` is stored |
 | `BRIEFCASE_NEW_PATH` | No | Where agent-created files are stored (single directory). Defaults to `{first BRIEFCASE_PATHS entry}\new` |
+| `BRIEFCASE_LIST_DEFAULT_LIMIT` | No | Default max files returned by `list_files` when the agent doesn't specify a limit. Negative or unset = no limit. |
 
 Copy `src/Briefcase/.env.example` to `src/Briefcase/.env` to configure locally.
 
