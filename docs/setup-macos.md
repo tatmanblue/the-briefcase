@@ -23,6 +23,23 @@ BRIEFCASE_DATA_PATH=~/.briefcase
 
 # Where agent-created files are stored (optional, defaults to {first BRIEFCASE_PATHS entry}/new)
 BRIEFCASE_NEW_PATH=~/Documents/new
+
+# Optional: path to a .gitignore-style file listing patterns to exclude
+# Defaults to {BRIEFCASE_DATA_PATH}/.briefcase-ignore if not set
+BRIEFCASE_IGNORE_FILE=~/.briefcase/my-ignore
+
+# Default max results for list_files (optional; negative or unset = no limit)
+BRIEFCASE_LIST_DEFAULT_LIMIT=100
+
+# Default max results for search_files (optional, default 25; negative = no limit)
+BRIEFCASE_SEARCH_DEFAULT_LIMIT=25
+
+# Files larger than this (in KB) are skipped during content search (optional, default 512)
+BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB=512
+
+# Enables the word-set cache for content search (optional, default false)
+# When true, reindex_files rebuilds this cache so subsequent searches are faster
+BRIEFCASE_SEARCH_CACHE_ENABLED=false
 ```
 
 ## 3. Wire it into your MCP client

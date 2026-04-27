@@ -38,6 +38,19 @@ public class NotificationDispatcher : IHostedService
         return Task.CompletedTask;
     }
 
+    public async Task SendListChangedAsync()
+    {
+        try
+        {
+            await server.SendNotificationAsync(NotificationMethods.ResourceListChangedNotification);
+            logger.LogDebug("Sent resource list changed notification from reindex.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send resource list changed notification from reindex.");
+        }
+    }
+
     private async void OnFileChanged(object? sender, FileChangedEventArgs e)
     {
         try

@@ -25,7 +25,7 @@ public class FileRegistry
         Directory.CreateDirectory(settings.DataPath);
         registryFilePath = Path.Combine(settings.DataPath, "registry.json");
         Load();
-        Scan(settings.BriefcasePaths);
+        var (added, _) = Scan(settings.BriefcasePaths);
         Save();
         this.logger.LogInformation("Registry loaded with {Count} entries.", entriesById.Count);
     }
@@ -131,8 +131,21 @@ public class FileRegistry
         File.WriteAllText(registryFilePath, json);
     }
 
-    private void Scan(string[] paths)
+    public (int added, int pruned) Reindex()
     {
+        lock (lockObject)
+        {
+            var counts = Scan(watchedRoots);
+            Save();
+            logger.LogInformation("Reindex complete: {Added} added, {Pruned} pruned.", counts.added, counts.pruned);
+            return counts;
+        }
+    }
+
+    private (int added, int pruned) Scan(string[] paths)
+    {
+        int added = 0;
+
         foreach (var path in paths)
         {
             if (!Directory.Exists(path))
@@ -155,6 +168,7 @@ public class FileRegistry
                 var entry = new RegistryEntry { Id = Guid.NewGuid(), AbsolutePath = file };
                 entriesById[entry.Id] = entry;
                 pathToId[file] = entry.Id;
+                added++;
             }
         }
 
@@ -163,7 +177,7 @@ public class FileRegistry
             .Where(e => !File.Exists(e.AbsolutePath) || ignoreRules.IsExcluded(e.AbsolutePath, watchedRoots))
             .Select(e => e.Id)
             .ToList();
-        
+
         foreach (var id in stale)
         {
             var stalePath = entriesById[id].AbsolutePath;
@@ -171,5 +185,7 @@ public class FileRegistry
             pathToId.Remove(stalePath);
             logger.LogDebug("Pruned stale registry entry: {Path}", stalePath);
         }
+
+        return (added, stale.Count);
     }
 }

@@ -10,6 +10,11 @@ AI agents — such as Claude Code, GitHub Copilot, or any MCP-compatible client 
 
 You configure which directories to share. The Briefcase assigns each file a stable ID (a GUID). Agents work entirely through those IDs — they never see real paths, cannot traverse the directory tree, and cannot access anything outside what you explicitly shared.
 
+
+## Video Demo
+
+[![The Briefcase Demo](https://img.youtube.com/vi/29OXo1NEDLc/0.jpg)](https://youtu.be/29OXo1NEDLc)
+
 ## How It Works
 
 ```
@@ -108,6 +113,66 @@ Replaces the full content of an existing file. Works on any file in the Briefcas
 }
 ```
 
+### `search_files`
+
+Searches for files by name, content, or both. Content search covers `.md` and `.txt` files only; other file types are matched by name only.
+
+**Parameters:**
+- `query` — text to search for (case-insensitive, required)
+- `searchIn` — `"both"` (default), `"name"`, or `"content"`
+- `matchMode` — `"substring"` (default, matches anywhere within a word) or `"word"` (whole-word only)
+- `limit` — max results; omit to use the server default (`BRIEFCASE_SEARCH_DEFAULT_LIMIT`)
+- `sort` — same options as `list_files`: `modified_desc` (default), `modified_asc`, `name_asc`, `name_desc`, `default`
+
+**Returns:**
+```json
+[
+  {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "name": "quarterly-report.md",
+    "size": 4096,
+    "lastModified": "2026-04-15T10:30:00Z",
+    "matchedIn": "name"
+  },
+  {
+    "id": "9b2e1a3c-8d4f-4e7b-a1c2-3d5e6f7a8b9c",
+    "name": "notes.txt",
+    "size": 1200,
+    "lastModified": "2026-04-20T08:00:00Z",
+    "matchedIn": "content"
+  }
+]
+```
+
+`matchedIn` is `"name"`, `"content"`, or `"both"` — tells the agent why the file was returned.
+
+### `reindex_files`
+
+Rebuilds the file registry and, if the search cache is enabled, the search cache. Scans all configured directories to add newly discovered files and prune stale entries. Blocks until complete.
+
+If a reindex is already in progress, returns immediately without waiting.
+
+**Parameters:** none
+
+**Returns:**
+```json
+{
+  "status": "completed",
+  "registryAdded": 3,
+  "registryPruned": 1,
+  "cacheEntriesBuilt": 42
+}
+```
+
+If already running:
+```json
+{
+  "status": "already_running"
+}
+```
+
+`cacheEntriesBuilt` is `0` when `BRIEFCASE_SEARCH_CACHE_ENABLED` is `false` or unset.
+
 ## File Change Notifications
 
 The Briefcase watches configured directories in real time using `FileSystemWatcher`. When files change, it sends standard MCP resource notifications to connected agents:
@@ -121,7 +186,7 @@ Agents that support MCP resource subscriptions can react immediately when a file
 
 ## Roadmap
 
-- [ ] Search files by name and content
+- [x] Search files by name and content
 - [x] Create file
 - [x] Update file content
 - [ ] Cloud storage backends (e.g. OneDrive, Google Drive)
@@ -131,4 +196,4 @@ Agents that support MCP resource subscriptions can react immediately when a file
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-1.0.2 
+1.1.0

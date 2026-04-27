@@ -1,7 +1,9 @@
 using Briefcase.Configuration;
 using Briefcase.Exclusions;
 using Briefcase.Notifications;
+using Briefcase.Reindex;
 using Briefcase.Registry;
+using Briefcase.Search;
 using Briefcase.Tools;
 using Briefcase.Watching;
 using DotNetEnv;
@@ -50,13 +52,30 @@ var listFilesDefaultLimit = int.TryParse(
     ? parsedLimit
     : -1;
 
+var searchDefaultLimit = int.TryParse(
+    Environment.GetEnvironmentVariable("BRIEFCASE_SEARCH_DEFAULT_LIMIT"), out var parsedSearchLimit)
+    ? parsedSearchLimit
+    : 25;
+
+var searchMaxFileSizeKb = int.TryParse(
+    Environment.GetEnvironmentVariable("BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB"), out var parsedSearchMaxSize)
+    ? parsedSearchMaxSize
+    : 512;
+
+var searchCacheEnabled = string.Equals(
+    Environment.GetEnvironmentVariable("BRIEFCASE_SEARCH_CACHE_ENABLED"), "true",
+    StringComparison.OrdinalIgnoreCase);
+
 var appSettings = new AppSettings
 {
     BriefcasePaths = briefcasePaths,
     DataPath = dataPath,
     NewPath = newPath,
     IgnoreFilePath = ignoreFilePath,
-    ListFilesDefaultLimit = listFilesDefaultLimit
+    ListFilesDefaultLimit = listFilesDefaultLimit,
+    SearchDefaultLimit = searchDefaultLimit,
+    SearchMaxFileSizeKb = searchMaxFileSizeKb,
+    SearchCacheEnabled = searchCacheEnabled
 };
 
 // Validate configuration and exit with a clear message if anything is wrong.
@@ -73,7 +92,11 @@ builder.Services.AddSingleton<IgnoreRules>(sp =>
     new IgnoreRules(appSettings.IgnoreFilePath, sp.GetRequiredService<ILogger<IgnoreRules>>()));
 builder.Services.AddSingleton<FileRegistry>();
 builder.Services.AddSingleton<FileWatcher>();
-builder.Services.AddHostedService<NotificationDispatcher>();
+builder.Services.AddSingleton<NotificationDispatcher>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<NotificationDispatcher>());
+builder.Services.AddSingleton<SearchCache>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<SearchCache>());
+builder.Services.AddSingleton<ReindexService>();
 
 builder.Services
     .AddMcpServer()
@@ -81,6 +104,8 @@ builder.Services
     .WithTools<ListFilesTool>()
     .WithTools<ReadFileTool>()
     .WithTools<CreateFileTool>()
-    .WithTools<UpdateFileTool>();
+    .WithTools<UpdateFileTool>()
+    .WithTools<SearchFilesTool>()
+    .WithTools<ReindexTool>();
 
 await builder.Build().RunAsync();
