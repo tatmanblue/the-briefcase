@@ -19,6 +19,9 @@ public static class StartupValidator
             valid = false;
         }
 
+        if (!string.IsNullOrEmpty(settings.NewFilesDataPath))
+            Console.Error.WriteLine($"[Briefcase] New files directory: {settings.NewFilesDataPath}");
+
         if (settings.BriefcasePaths.Length == 0)
         {
             Console.Error.WriteLine("[Briefcase] WARNING: BRIEFCASE_PATHS is not set. No files will be visible to agents.");

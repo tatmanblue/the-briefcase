@@ -11,7 +11,6 @@ The server will support the following operations:
 
 These features will be saved for a future version:
 - Search for files (searches for files based on name and content)
-- Update file
 
 The MCP server will not expose direct file system access to agents. Instead, it will provide an API for agents to interact with files in a controlled manner.
 
@@ -22,13 +21,15 @@ Files are identified by stable GUIDs that persist across server restarts (stored
 
 Transport: stdio.
 
-# Current Status — V1 Complete (prototype)
+# Current Status — V1.1 (prototype)
 
-All V1 features are implemented and the project builds cleanly.
+All V1 and V1.1 features are implemented and the project builds cleanly.
 
 ## Implemented
 - `list_files` MCP tool — returns file IDs, names, sizes, and last-modified timestamps. No file system paths are exposed.
 - `read_file` MCP tool — returns file content plus metadata by GUID.
+- `create_file` MCP tool — agents supply a filename and content; the file is written to `BRIEFCASE_NEW_FILES_DATA_PATH` and registered immediately.
+- `update_file` MCP tool — agents supply a GUID and new content; the entire file is replaced in-place.
 - `FileRegistry` — persistent GUID↔path mapping stored as `registry.json` in `BRIEFCASE_DATA_PATH`. Scans all configured paths recursively on startup; prunes stale entries; survives restarts.
 - `FileWatcher` — wraps `FileSystemWatcher` on each configured path (recursive). Detects create, change, delete, rename events and updates the registry.
 - `NotificationDispatcher` — hosted service that bridges watcher events to MCP protocol notifications:
@@ -40,6 +41,7 @@ All V1 features are implemented and the project builds cleanly.
 |---|---|---|
 | `BRIEFCASE_PATHS` | Yes | Semicolon-separated list of directories to expose (recursive) |
 | `BRIEFCASE_DATA_PATH` | Yes | Directory where `registry.json` is stored |
+| `BRIEFCASE_NEW_FILES_DATA_PATH` | No | Where agent-created files are stored. Defaults to `{BRIEFCASE_DATA_PATH}\new` |
 
 Copy `src/Briefcase/.env.example` to `src/Briefcase/.env` to configure locally.
 
@@ -49,7 +51,7 @@ Copy `src/Briefcase/.env.example` to `src/Briefcase/.env` to configure locally.
   - `Registry/` — `FileRegistry`, `RegistryEntry`
   - `Watching/` — `FileWatcher`, `FileChangedEventArgs`
   - `Notifications/` — `NotificationDispatcher`
-  - `Tools/` — `ListFilesTool`, `ReadFileTool`
+  - `Tools/` — `ListFilesTool`, `ReadFileTool`, `CreateFileTool`, `UpdateFileTool`
 - `docs/`: Documentation for the project.
 
 # Technology

@@ -18,6 +18,7 @@ You configure which directories to share. The Briefcase assigns each file a stab
   C:\docs\notes.txt  ───►  briefcase://file/{guid}  ───►   list_files
   C:\docs\report.md  ───►  briefcase://file/{guid}  ───►   read_file
   D:\shared\data.csv ───►  briefcase://file/{guid}  ───►   (notifications)
+                           briefcase://file/{guid}  ◄───   create_file / update_file
 ```
 
 1. You tell The Briefcase which directories to watch via the `BRIEFCASE_PATHS` environment variable.
@@ -28,7 +29,7 @@ You configure which directories to share. The Briefcase assigns each file a stab
 
 ## Status
 
-Version 1 — Prototype. Local file system only.
+Version 1.1 — Prototype. Local file system only.
 
 ## Setup
 
@@ -52,6 +53,9 @@ BRIEFCASE_PATHS=C:\Users\you\Documents;D:\projects\notes
 
 # Where to store the persistent file ID registry
 BRIEFCASE_DATA_PATH=C:\Users\you\.briefcase
+
+# Where agent-created files are stored (optional, defaults to {BRIEFCASE_DATA_PATH}\new)
+BRIEFCASE_NEW_FILES_DATA_PATH=C:\Users\you\.briefcase\new
 ```
 
 ### 3. Wire it into your MCP client
@@ -120,6 +124,42 @@ Reads the content of a file by its ID.
 }
 ```
 
+### `create_file`
+
+Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_FILES_DATA_PATH` and made immediately available to all agents.
+
+**Parameters:**
+- `name` — filename including extension (e.g. `notes.txt`). Path separators are stripped.
+- `content` — full content of the new file.
+
+**Returns:**
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "notes.txt",
+  "size": 42,
+  "lastModified": "2026-04-27T10:00:00Z"
+}
+```
+
+### `update_file`
+
+Replaces the full content of an existing file. Works on any file in the Briefcase regardless of which directory it lives in.
+
+**Parameters:**
+- `id` — the GUID returned by `list_files` or `create_file`
+- `content` — the new full content. The entire existing content is replaced.
+
+**Returns:**
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "notes.txt",
+  "size": 99,
+  "lastModified": "2026-04-27T11:00:00Z"
+}
+```
+
 ## File Change Notifications
 
 The Briefcase watches configured directories in real time using `FileSystemWatcher`. When files change, it sends standard MCP resource notifications to connected agents:
@@ -134,7 +174,8 @@ Agents that support MCP resource subscriptions can react immediately when a file
 ## Roadmap
 
 - [ ] Search files by name and content
-- [ ] Update file content
+- [x] Create file
+- [x] Update file content
 - [ ] Cloud storage backends (e.g. OneDrive, Google Drive)
 
 ## License

@@ -32,6 +32,16 @@ var briefcasePaths = (Environment.GetEnvironmentVariable("BRIEFCASE_PATHS") ?? s
 
 var dataPath = Environment.GetEnvironmentVariable("BRIEFCASE_DATA_PATH") ?? string.Empty;
 
+var newFilesDataPath = Environment.GetEnvironmentVariable("BRIEFCASE_NEW_FILES_DATA_PATH")
+    ?? (string.IsNullOrEmpty(dataPath) ? string.Empty : Path.Combine(dataPath, "new"));
+
+if (!string.IsNullOrEmpty(newFilesDataPath))
+{
+    Directory.CreateDirectory(newFilesDataPath);
+    if (!briefcasePaths.Contains(newFilesDataPath, StringComparer.OrdinalIgnoreCase))
+        briefcasePaths = [.. briefcasePaths, newFilesDataPath];
+}
+
 var ignoreFilePath = Environment.GetEnvironmentVariable("BRIEFCASE_IGNORE_FILE")
     ?? (string.IsNullOrEmpty(dataPath) ? string.Empty : Path.Combine(dataPath, ".briefcase-ignore"));
 
@@ -39,6 +49,7 @@ var appSettings = new AppSettings
 {
     BriefcasePaths = briefcasePaths,
     DataPath = dataPath,
+    NewFilesDataPath = newFilesDataPath,
     IgnoreFilePath = ignoreFilePath
 };
 
@@ -62,6 +73,8 @@ builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
     .WithTools<ListFilesTool>()
-    .WithTools<ReadFileTool>();
+    .WithTools<ReadFileTool>()
+    .WithTools<CreateFileTool>()
+    .WithTools<UpdateFileTool>();
 
 await builder.Build().RunAsync();
