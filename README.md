@@ -279,6 +279,8 @@ Agents that support MCP resource subscriptions can react immediately when a file
 - [x] Update file content
 - [x] Projects — group files and filter by project
 - [ ] Cloud storage backends (e.g. OneDrive, Google Drive)
+- [ ] File locking and edit conflict resolution
+- [ ] HTTP with Server-Sent Events
 
 ## License
 
