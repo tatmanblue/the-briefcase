@@ -91,6 +91,7 @@ builder.Services.AddSingleton(appSettings);
 builder.Services.AddSingleton<IgnoreRules>(sp =>
     new IgnoreRules(appSettings.IgnoreFilePath, sp.GetRequiredService<ILogger<IgnoreRules>>()));
 builder.Services.AddSingleton<FileRegistry>();
+builder.Services.AddSingleton<ProjectRegistry>();
 builder.Services.AddSingleton<FileWatcher>();
 builder.Services.AddSingleton<NotificationDispatcher>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<NotificationDispatcher>());
@@ -106,6 +107,13 @@ builder.Services
     .WithTools<CreateFileTool>()
     .WithTools<UpdateFileTool>()
     .WithTools<SearchFilesTool>()
-    .WithTools<ReindexTool>();
+    .WithTools<ReindexTool>()
+    .WithTools<CreateProjectTool>()
+    .WithTools<ListProjectsTool>()
+    .WithTools<GetProjectTool>()
+    .WithTools<AddFileToProjectTool>()
+    .WithTools<RemoveFileFromProjectTool>()
+    .WithTools<UpdateProjectTool>()
+    .WithTools<DeleteProjectTool>();
 
 await builder.Build().RunAsync();

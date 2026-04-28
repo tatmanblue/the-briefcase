@@ -25,7 +25,7 @@ public class FileRegistry
         Directory.CreateDirectory(settings.DataPath);
         registryFilePath = Path.Combine(settings.DataPath, "registry.json");
         Load();
-        var (added, _) = Scan(settings.BriefcasePaths);
+        Scan(settings.BriefcasePaths);
         Save();
         this.logger.LogInformation("Registry loaded with {Count} entries.", entriesById.Count);
     }
@@ -131,18 +131,18 @@ public class FileRegistry
         File.WriteAllText(registryFilePath, json);
     }
 
-    public (int added, int pruned) Reindex()
+    public (int added, int pruned, IReadOnlyList<Guid> prunedIds) Reindex()
     {
         lock (lockObject)
         {
-            var counts = Scan(watchedRoots);
+            var (added, prunedIds) = Scan(watchedRoots);
             Save();
-            logger.LogInformation("Reindex complete: {Added} added, {Pruned} pruned.", counts.added, counts.pruned);
-            return counts;
+            logger.LogInformation("Reindex complete: {Added} added, {Pruned} pruned.", added, prunedIds.Count);
+            return (added, prunedIds.Count, prunedIds);
         }
     }
 
-    private (int added, int pruned) Scan(string[] paths)
+    private (int added, IReadOnlyList<Guid> prunedIds) Scan(string[] paths)
     {
         int added = 0;
 
@@ -186,6 +186,6 @@ public class FileRegistry
             logger.LogDebug("Pruned stale registry entry: {Path}", stalePath);
         }
 
-        return (added, stale.Count);
+        return (added, stale);
     }
 }

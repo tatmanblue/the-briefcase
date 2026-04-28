@@ -51,6 +51,19 @@ public class NotificationDispatcher : IHostedService
         }
     }
 
+    public async Task SendProjectListChangedAsync()
+    {
+        try
+        {
+            await server.SendNotificationAsync("notifications/projects/list_changed");
+            logger.LogDebug("Sent project list changed notification.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send project list changed notification.");
+        }
+    }
+
     private async void OnFileChanged(object? sender, FileChangedEventArgs e)
     {
         try

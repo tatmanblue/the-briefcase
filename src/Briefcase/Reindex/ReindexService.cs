@@ -8,6 +8,7 @@ namespace Briefcase.Reindex;
 public class ReindexService
 {
     private readonly FileRegistry registry;
+    private readonly ProjectRegistry projectRegistry;
     private readonly SearchCache searchCache;
     private readonly NotificationDispatcher notificationDispatcher;
     private readonly ILogger<ReindexService> logger;
@@ -15,11 +16,13 @@ public class ReindexService
 
     public ReindexService(
         FileRegistry registry,
+        ProjectRegistry projectRegistry,
         SearchCache searchCache,
         NotificationDispatcher notificationDispatcher,
         ILogger<ReindexService> logger)
     {
         this.registry = registry;
+        this.projectRegistry = projectRegistry;
         this.searchCache = searchCache;
         this.notificationDispatcher = notificationDispatcher;
         this.logger = logger;
@@ -33,7 +36,10 @@ public class ReindexService
         try
         {
             logger.LogInformation("Reindex started.");
-            var (added, pruned) = await Task.Run(() => registry.Reindex());
+            var (added, pruned, prunedIds) = await Task.Run(() => registry.Reindex());
+
+            foreach (var fileId in prunedIds)
+                projectRegistry.PruneFileId(fileId);
 
             int cacheBuilt = 0;
             if (searchCache.IsEnabled)

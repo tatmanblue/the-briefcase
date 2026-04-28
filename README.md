@@ -34,7 +34,7 @@ You configure which directories to share. The Briefcase assigns each file a stab
 
 ## Status
 
-Version 1.1 — Prototype. Local file system only.
+Version 1.2 — Prototype. Local file system only.
 
 ## Setup
 
@@ -47,6 +47,12 @@ Version 1.1 — Prototype. Local file system only.
 
 Returns all files currently known to The Briefcase. No file system paths are included — only the information the agent needs.
 
+**Parameters (all optional):**
+- `limit` — max results; omit to use server default; `0` or negative = all
+- `sort` — `modified_desc` (default), `modified_asc`, `name_asc`, `name_desc`, `default`
+- `project` — filter by project ID (GUID) or project name
+- `unassigned` — `true` to return only files not in any project (cannot combine with `project`)
+
 **Returns:**
 ```json
 [
@@ -54,10 +60,14 @@ Returns all files currently known to The Briefcase. No file system paths are inc
     "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "name": "notes.txt",
     "size": 1024,
-    "lastModified": "2026-04-24T10:00:00Z"
+    "lastModified": "2026-04-24T10:00:00Z",
+    "projectId": "a1b2c3d4-...",
+    "projectName": "My Project"
   }
 ]
 ```
+
+`projectId` and `projectName` are `null` when the file is not associated with any project.
 
 ### `read_file`
 
@@ -84,6 +94,7 @@ Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_PATH`
 **Parameters:**
 - `name` — filename including extension (e.g. `notes.txt`). Path separators are stripped.
 - `content` — full content of the new file.
+- `projectId` *(optional)* — GUID of a project to associate the file with. The call fails if the ID does not exist.
 
 **Returns:**
 ```json
@@ -91,7 +102,8 @@ Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_PATH`
   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "name": "notes.txt",
   "size": 42,
-  "lastModified": "2026-04-27T10:00:00Z"
+  "lastModified": "2026-04-27T10:00:00Z",
+  "projectId": null
 }
 ```
 
@@ -123,6 +135,8 @@ Searches for files by name, content, or both. Content search covers `.md` and `.
 - `matchMode` — `"substring"` (default, matches anywhere within a word) or `"word"` (whole-word only)
 - `limit` — max results; omit to use the server default (`BRIEFCASE_SEARCH_DEFAULT_LIMIT`)
 - `sort` — same options as `list_files`: `modified_desc` (default), `modified_asc`, `name_asc`, `name_desc`, `default`
+- `project` — filter by project ID (GUID) or project name
+- `unassigned` — `true` to search only files not in any project (cannot combine with `project`)
 
 **Returns:**
 ```json
@@ -132,19 +146,93 @@ Searches for files by name, content, or both. Content search covers `.md` and `.
     "name": "quarterly-report.md",
     "size": 4096,
     "lastModified": "2026-04-15T10:30:00Z",
-    "matchedIn": "name"
-  },
-  {
-    "id": "9b2e1a3c-8d4f-4e7b-a1c2-3d5e6f7a8b9c",
-    "name": "notes.txt",
-    "size": 1200,
-    "lastModified": "2026-04-20T08:00:00Z",
-    "matchedIn": "content"
+    "matchedIn": "name",
+    "projectId": "a1b2c3d4-...",
+    "projectName": "My Project"
   }
 ]
 ```
 
-`matchedIn` is `"name"`, `"content"`, or `"both"` — tells the agent why the file was returned.
+`matchedIn` is `"name"`, `"content"`, or `"both"` — tells the agent why the file was returned. `projectId` and `projectName` are `null` when the file has no project association.
+
+---
+
+## Project Tools
+
+Projects let you group related files together. A file can belong to at most one project. Files with no project are still fully accessible. Project metadata is stored in `BRIEFCASE_DATA_PATH` as `project-{guid}.json` files and never appears in `list_files` or `search_files` results.
+
+### `create_project`
+
+Creates a new project. Project names must be unique.
+
+**Parameters:**
+- `name` — project name (required, must be unique)
+- `description` — short description of the project
+
+**Returns:** project ID, name, description, createdDate
+
+---
+
+### `list_projects`
+
+Lists all projects with their file counts.
+
+**Parameters (all optional):**
+- `limit` — max results; omit to return all
+- `sort` — `name_asc` (default) or `name_desc`
+
+---
+
+### `get_project`
+
+Returns a project's metadata and the list of files it contains. Accepts a project ID (GUID) or project name.
+
+**Parameters:**
+- `idOrName` — project ID (GUID) or project name
+
+**Returns:** id, name, description, createdDate, files (list of `{ id, name }`)
+
+---
+
+### `add_file_to_project`
+
+Associates a file with a project. If the file is already in another project it is moved to this one.
+
+**Parameters:**
+- `projectId` — project GUID
+- `fileId` — file GUID (from `list_files`)
+
+---
+
+### `remove_file_from_project`
+
+Removes a file from a project. The file remains in the Briefcase but loses its project association.
+
+**Parameters:**
+- `projectId` — project GUID
+- `fileId` — file GUID
+
+---
+
+### `update_project`
+
+Updates a project's name and/or description. Omit either parameter to leave it unchanged.
+
+**Parameters:**
+- `projectId` — project GUID
+- `name` *(optional)* — new name
+- `description` *(optional)* — new description
+
+---
+
+### `delete_project`
+
+Deletes a project. All member files remain in the Briefcase but lose their project association.
+
+**Parameters:**
+- `projectId` — project GUID
+
+---
 
 ### `reindex_files`
 
@@ -189,6 +277,7 @@ Agents that support MCP resource subscriptions can react immediately when a file
 - [x] Search files by name and content
 - [x] Create file
 - [x] Update file content
+- [x] Projects — group files and filter by project
 - [ ] Cloud storage backends (e.g. OneDrive, Google Drive)
 
 ## License
@@ -196,4 +285,4 @@ Agents that support MCP resource subscriptions can react immediately when a file
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-1.1.0
+1.2.0
