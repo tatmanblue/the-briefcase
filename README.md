@@ -1,6 +1,6 @@
 # The Briefcase
 
-Let your AI Agents read, create and update files without cluttering your project directory.  The briefcase is an MCP server that gives AI agents controlled access to files outside their working directory.
+Let your AI Agents search, read, create and update files without cluttering your project directory.  The briefcase is an MCP server that gives AI agents controlled access to files outside their working directory.
 
 ## What is The Briefcase?
 
