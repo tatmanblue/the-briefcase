@@ -10,6 +10,8 @@ AI agents — such as Claude Code, GitHub Copilot, or any MCP-compatible client 
 
 You configure which directories to share. The Briefcase assigns each file a stable ID (a GUID). Agents work entirely through those IDs — they never see real paths, cannot traverse the directory tree, and cannot access anything outside what you explicitly shared.
 
+Agents are able to search, read, create, and update the files made available through the Briefcase.
+
 
 ## Video Demo
 
