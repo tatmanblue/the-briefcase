@@ -74,8 +74,8 @@ The Briefcase watches configured directories in real time and sends standard MCP
 - [x] Create file
 - [x] Update file content
 - [x] Projects — group files and filter by project
-- [ ] Cloud storage backends (e.g. OneDrive, Google Drive)
-- [ ] File locking and edit conflict resolution
+- [ ] Plug in architecture for custom extensions
+- [ ] Cloud storage backends (e.g. S3, OneDrive, Google Drive)
 - [ ] HTTP with Server-Sent Events
 
 ## License
@@ -83,4 +83,4 @@ The Briefcase watches configured directories in real time and sends standard MCP
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-1.2.0
+1.2.1
