@@ -25,7 +25,8 @@ internal class ListFilesTool
         "Use the returned ID to read a file's content. " +
         "Results are sorted newest-modified first by default. " +
         "Use 'limit' to control how many results are returned and 'sort' to control ordering. " +
-        "Use 'project' to filter by project ID or name, or 'unassigned' to return only files not in any project.")]
+        "Use 'project' to filter by project ID or name, or 'unassigned' to return only files not in any project. " +
+        "Archived files are excluded by default; use 'includeArchived' to include them or 'archivedOnly' to return only archived files.")]
     public string ListFiles(
         [Description(
             "Maximum number of files to return. " +
@@ -40,10 +41,15 @@ internal class ListFilesTool
             "'name_desc' = alphabetical Z to A, " +
             "'default' = registry insertion order.")] string? sort = null,
         [Description("Filter by project ID (GUID) or project name. Cannot be combined with unassigned.")] string? project = null,
-        [Description("When true, returns only files not associated with any project. Cannot be combined with project.")] bool? unassigned = null)
+        [Description("When true, returns only files not associated with any project. Cannot be combined with project.")] bool? unassigned = null,
+        [Description("When true, includes archived files alongside active files in the results.")] bool? includeArchived = null,
+        [Description("When true, returns only archived files. Cannot be combined with includeArchived=false.")] bool? archivedOnly = null)
     {
         if (project != null && unassigned == true)
             return JsonSerializer.Serialize(new { error = "Cannot specify both 'project' and 'unassigned'." });
+
+        if (archivedOnly == true && includeArchived == false)
+            return JsonSerializer.Serialize(new { error = "Cannot specify 'archivedOnly' with 'includeArchived' set to false." });
 
         Guid? filterProjectId = null;
         if (project != null)
@@ -65,23 +71,30 @@ internal class ListFilesTool
                 var proj = projectRegistry.FindProjectForFile(entry.Id);
                 return new
                 {
-                    entry,
                     id = entry.Id,
                     name = entry.Name,
                     size = info.Exists ? info.Length : (long?)null,
                     lastModified = info.Exists ? info.LastWriteTimeUtc : (DateTime?)null,
                     projectId = proj?.projectId,
-                    projectName = proj?.projectName
+                    projectName = proj?.projectName,
+                    isArchived = entry.IsArchived
                 };
             })
             .ToList();
 
+        // Apply archive filter on the strongly-typed list before handing off to the dynamic pipeline
+        var afterArchiveFilter = archivedOnly == true
+            ? entries.Where(f => f.isArchived).ToList()
+            : includeArchived != true
+                ? entries.Where(f => !f.isArchived).ToList()
+                : entries;
+
         // Apply project / unassigned filter
-        IEnumerable<dynamic> filtered = entries;
+        IEnumerable<dynamic> filtered = afterArchiveFilter;
         if (filterProjectId.HasValue)
-            filtered = entries.Where(f => f.projectId == filterProjectId);
+            filtered = afterArchiveFilter.Where(f => f.projectId == filterProjectId);
         else if (unassigned == true)
-            filtered = entries.Where(f => f.projectId == null);
+            filtered = afterArchiveFilter.Where(f => f.projectId == null);
 
         var sortKey = (sort ?? "modified_desc").Trim().ToLowerInvariant();
         IEnumerable<dynamic> sorted = sortKey switch
@@ -105,7 +118,8 @@ internal class ListFilesTool
                 size = f.size,
                 lastModified = f.lastModified,
                 projectId = f.projectId,
-                projectName = f.projectName
+                projectName = f.projectName,
+                isArchived = f.isArchived
             })
             .ToList();
 

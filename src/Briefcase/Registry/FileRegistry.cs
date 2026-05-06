@@ -95,7 +95,8 @@ public class FileRegistry
             }
             else
             {
-                entriesById[id] = new RegistryEntry { Id = id, AbsolutePath = newPath };
+                var wasArchived = entriesById[id].IsArchived;
+                entriesById[id] = new RegistryEntry { Id = id, AbsolutePath = newPath, IsArchived = wasArchived };
                 pathToId[newPath] = id;
                 logger.LogDebug("Renamed file in registry: {OldPath} -> {NewPath}", oldPath, newPath);
             }
@@ -129,6 +130,30 @@ public class FileRegistry
     {
         var json = JsonSerializer.Serialize(entriesById.Values.ToList(), SerializerOptions);
         File.WriteAllText(registryFilePath, json);
+    }
+
+    public RegistryEntry? Archive(Guid id)
+    {
+        lock (lockObject)
+        {
+            if (!entriesById.TryGetValue(id, out var entry))
+                return null;
+            entry.IsArchived = true;
+            Save();
+            return entry;
+        }
+    }
+
+    public RegistryEntry? Unarchive(Guid id)
+    {
+        lock (lockObject)
+        {
+            if (!entriesById.TryGetValue(id, out var entry))
+                return null;
+            entry.IsArchived = false;
+            Save();
+            return entry;
+        }
     }
 
     public (int added, int pruned, IReadOnlyList<Guid> prunedIds) Reindex()

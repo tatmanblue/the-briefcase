@@ -114,6 +114,8 @@ builder.Services
     .WithTools<AddFileToProjectTool>()
     .WithTools<RemoveFileFromProjectTool>()
     .WithTools<UpdateProjectTool>()
-    .WithTools<DeleteProjectTool>();
+    .WithTools<DeleteProjectTool>()
+    .WithTools<ArchiveFileTool>()
+    .WithTools<UnarchiveFileTool>();
 
 await builder.Build().RunAsync();

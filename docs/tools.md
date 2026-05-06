@@ -4,13 +4,15 @@
 
 ### `list_files`
 
-Returns all files currently known to The Briefcase. No file system paths are included — only the information the agent needs.
+Returns all files currently known to The Briefcase. No file system paths are included — only the information the agent needs. Archived files are excluded by default.
 
 **Parameters (all optional):**
 - `limit` — max results; omit to use server default; `0` or negative = all
 - `sort` — `modified_desc` (default), `modified_asc`, `name_asc`, `name_desc`, `default`
 - `project` — filter by project ID (GUID) or project name
 - `unassigned` — `true` to return only files not in any project (cannot combine with `project`)
+- `includeArchived` — `true` to include archived files alongside active files
+- `archivedOnly` — `true` to return only archived files (cannot combine with `includeArchived=false`)
 
 **Returns:**
 ```json
@@ -21,18 +23,19 @@ Returns all files currently known to The Briefcase. No file system paths are inc
     "size": 1024,
     "lastModified": "2026-04-24T10:00:00Z",
     "projectId": "a1b2c3d4-...",
-    "projectName": "My Project"
+    "projectName": "My Project",
+    "isArchived": false
   }
 ]
 ```
 
-`projectId` and `projectName` are `null` when the file is not associated with any project.
+`projectId` and `projectName` are `null` when the file is not associated with any project. `isArchived` is always present.
 
 ---
 
 ### `read_file`
 
-Reads the content of a file by its ID.
+Reads the content of a file by its ID. Works on any file regardless of archive state.
 
 **Parameters:**
 - `id` — the GUID returned by `list_files`
@@ -52,7 +55,7 @@ Reads the content of a file by its ID.
 
 ### `create_file`
 
-Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_PATH` and made immediately available to all agents.
+Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_PATH` and made immediately available to all agents. New files are always created in non-archived state.
 
 **Parameters:**
 - `name` — filename including extension (e.g. `notes.txt`). Path separators are stripped.
@@ -74,7 +77,7 @@ Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_PATH`
 
 ### `update_file`
 
-Replaces the full content of an existing file. Works on any file in the Briefcase regardless of which directory it lives in.
+Replaces the full content of an existing file. Works on any file in the Briefcase regardless of which directory it lives in or whether it is archived.
 
 **Parameters:**
 - `id` — the GUID returned by `list_files` or `create_file`
@@ -94,7 +97,7 @@ Replaces the full content of an existing file. Works on any file in the Briefcas
 
 ### `search_files`
 
-Searches for files by name, content, or both. Content search covers `.md` and `.txt` files only; other file types are matched by name only.
+Searches for files by name, content, or both. Content search covers `.md` and `.txt` files only; other file types are matched by name only. Archived files are excluded by default.
 
 **Parameters:**
 - `query` — text to search for (case-insensitive, required)
@@ -104,6 +107,8 @@ Searches for files by name, content, or both. Content search covers `.md` and `.
 - `sort` — same options as `list_files`: `modified_desc` (default), `modified_asc`, `name_asc`, `name_desc`, `default`
 - `project` — filter by project ID (GUID) or project name
 - `unassigned` — `true` to search only files not in any project (cannot combine with `project`)
+- `includeArchived` — `true` to include archived files alongside active files
+- `archivedOnly` — `true` to search only archived files (cannot combine with `includeArchived=false`)
 
 **Returns:**
 ```json
@@ -115,12 +120,53 @@ Searches for files by name, content, or both. Content search covers `.md` and `.
     "lastModified": "2026-04-15T10:30:00Z",
     "matchedIn": "name",
     "projectId": "a1b2c3d4-...",
-    "projectName": "My Project"
+    "projectName": "My Project",
+    "isArchived": false
   }
 ]
 ```
 
-`matchedIn` is `"name"`, `"content"`, or `"both"` — tells the agent why the file was returned. `projectId` and `projectName` are `null` when the file has no project association.
+`matchedIn` is `"name"`, `"content"`, or `"both"`. `projectId` and `projectName` are `null` when the file has no project association.
+
+---
+
+### `archive_file`
+
+Marks a file as archived. Archived files are excluded from `list_files` and `search_files` results by default. The file remains readable by ID at any time and its project association is preserved. Archiving an already-archived file succeeds without error.
+
+**Parameters:**
+- `id` — the GUID returned by `list_files`
+
+**Returns:**
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "old-draft.md",
+  "size": 2048,
+  "lastModified": "2026-05-01T09:00:00Z",
+  "isArchived": true
+}
+```
+
+---
+
+### `unarchive_file`
+
+Restores an archived file to active status. The file will appear again in `list_files` and `search_files` results. Project association is preserved through archive and unarchive. Unarchiving an already-active file succeeds without error.
+
+**Parameters:**
+- `id` — the GUID of the archived file
+
+**Returns:**
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "old-draft.md",
+  "size": 2048,
+  "lastModified": "2026-05-01T09:00:00Z",
+  "isArchived": false
+}
+```
 
 ---
 
@@ -152,12 +198,24 @@ Lists all projects with their file counts.
 
 ### `get_project`
 
-Returns a project's metadata and the list of files it contains. Accepts a project ID (GUID) or project name.
+Returns a project's metadata and the list of files it contains. Accepts a project ID (GUID) or project name. Archived member files are excluded by default.
 
 **Parameters:**
 - `idOrName` — project ID (GUID) or project name
+- `includeArchived` *(optional)* — `true` to include archived files in the member list
 
-**Returns:** id, name, description, createdDate, files (list of `{ id, name }`)
+**Returns:**
+```json
+{
+  "id": "a1b2c3d4-...",
+  "name": "My Project",
+  "description": "...",
+  "createdDate": "2026-04-28T00:00:00Z",
+  "files": [
+    { "id": "3fa85f64-...", "name": "notes.txt", "isArchived": false }
+  ]
+}
+```
 
 ---
 
@@ -203,7 +261,7 @@ Deletes a project. All member files remain in the Briefcase but lose their proje
 
 ### `reindex_files`
 
-Rebuilds the file registry and, if the search cache is enabled, the search cache. Scans all configured directories to add newly discovered files and prune stale entries. Blocks until complete.
+Rebuilds the file registry and, if the search cache is enabled, the search cache. Scans all configured directories to add newly discovered files and prune stale entries. Blocks until complete. Archive state is preserved for existing entries during reindex.
 
 If a reindex is already in progress, returns immediately without waiting.
 
@@ -238,5 +296,6 @@ The Briefcase watches configured directories in real time using `FileSystemWatch
 |---|---|
 | File created, deleted, or renamed | `notifications/resources/list_changed` |
 | File content modified | `notifications/resources/updated` |
+| File archived or unarchived | `notifications/resources/list_changed` |
 
 Agents that support MCP resource subscriptions can react immediately when a file they care about changes, without polling.

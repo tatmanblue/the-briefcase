@@ -31,7 +31,8 @@ internal class SearchFilesTool
         "Searches files in the Briefcase by name and/or content. " +
         "Returns file IDs, names, sizes, last modified timestamps, where the match was found, and project association. " +
         "Content search covers .md and .txt files only. " +
-        "Use 'project' to restrict the search to a specific project, or 'unassigned' to search only files not in any project.")]
+        "Use 'project' to restrict the search to a specific project, or 'unassigned' to search only files not in any project. " +
+        "Archived files are excluded by default; use 'includeArchived' to include them or 'archivedOnly' to search only archived files.")]
     public string SearchFiles(
         [Description("Text to search for. Case-insensitive.")] string query,
         [Description(
@@ -55,13 +56,18 @@ internal class SearchFilesTool
             "'name_desc' = Z to A, " +
             "'default' = registry order.")] string? sort = null,
         [Description("Filter by project ID (GUID) or project name. Cannot be combined with unassigned.")] string? project = null,
-        [Description("When true, searches only files not associated with any project. Cannot be combined with project.")] bool? unassigned = null)
+        [Description("When true, searches only files not associated with any project. Cannot be combined with project.")] bool? unassigned = null,
+        [Description("When true, includes archived files alongside active files in the results.")] bool? includeArchived = null,
+        [Description("When true, searches only archived files. Cannot be combined with includeArchived=false.")] bool? archivedOnly = null)
     {
         if (string.IsNullOrWhiteSpace(query))
             return JsonSerializer.Serialize(new { error = "query must not be empty." });
 
         if (project != null && unassigned == true)
             return JsonSerializer.Serialize(new { error = "Cannot specify both 'project' and 'unassigned'." });
+
+        if (archivedOnly == true && includeArchived == false)
+            return JsonSerializer.Serialize(new { error = "Cannot specify 'archivedOnly' with 'includeArchived' set to false." });
 
         Guid? filterProjectId = null;
         if (project != null)
@@ -86,6 +92,15 @@ internal class SearchFilesTool
 
         foreach (var entry in registry.GetAll())
         {
+            if (archivedOnly == true)
+            {
+                if (!entry.IsArchived) continue;
+            }
+            else if (includeArchived != true)
+            {
+                if (entry.IsArchived) continue;
+            }
+
             var proj = projectRegistry.FindProjectForFile(entry.Id);
 
             if (filterProjectId.HasValue && proj?.projectId != filterProjectId)
@@ -112,7 +127,8 @@ internal class SearchFilesTool
                 LastModified = info.LastWriteTimeUtc,
                 MatchedIn = (nameMatch && contentMatch) ? "both" : (nameMatch ? "name" : "content"),
                 ProjectId = proj?.projectId,
-                ProjectName = proj?.projectName
+                ProjectName = proj?.projectName,
+                IsArchived = entry.IsArchived
             });
         }
 
@@ -139,7 +155,8 @@ internal class SearchFilesTool
                 lastModified = r.LastModified,
                 matchedIn = r.MatchedIn,
                 projectId = r.ProjectId,
-                projectName = r.ProjectName
+                projectName = r.ProjectName,
+                isArchived = r.IsArchived
             }),
             new JsonSerializerOptions { WriteIndented = true });
     }
@@ -190,5 +207,6 @@ internal class SearchFilesTool
         public string MatchedIn { get; init; } = string.Empty;
         public Guid? ProjectId { get; init; }
         public string? ProjectName { get; init; }
+        public bool IsArchived { get; init; }
     }
 }

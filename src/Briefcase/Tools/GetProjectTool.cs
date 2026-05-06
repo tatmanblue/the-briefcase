@@ -17,9 +17,12 @@ internal class GetProjectTool
     }
 
     [McpServerTool(Name = "get_project")]
-    [Description("Returns a project's metadata and the list of files it contains. Accepts a project ID (GUID) or project name.")]
+    [Description(
+        "Returns a project's metadata and the list of files it contains. Accepts a project ID (GUID) or project name. " +
+        "Archived member files are excluded by default; use 'includeArchived' to include them.")]
     public string GetProject(
-        [Description("The project ID (GUID) or project name.")] string idOrName)
+        [Description("The project ID (GUID) or project name.")] string idOrName,
+        [Description("When true, includes archived files in the member list.")] bool? includeArchived = null)
     {
         ProjectEntry? entry = null;
 
@@ -34,7 +37,8 @@ internal class GetProjectTool
         var files = entry.FileIds
             .Select(fileId => fileRegistry.GetById(fileId))
             .Where(f => f != null)
-            .Select(f => new { id = f!.Id, name = f.Name })
+            .Where(f => includeArchived == true || !f!.IsArchived)
+            .Select(f => new { id = f!.Id, name = f.Name, isArchived = f.IsArchived })
             .ToList();
 
         return JsonSerializer.Serialize(

@@ -48,11 +48,13 @@ Version 1.2 — Prototype. Local file system only.
 See [Tools Reference](docs/tools.md) for full parameter and return-value details.
 
 **File Tools**
-- `list_files` — discover all files known to The Briefcase; supports filtering by project and sort order
+- `list_files` — discover all files known to The Briefcase; supports filtering by project, archive state, and sort order
 - `read_file` — retrieve a file's content by its GUID
 - `create_file` — write a new file into The Briefcase
 - `update_file` — replace the full content of an existing file
-- `search_files` — search files by name, content, or both
+- `search_files` — search files by name, content, or both; supports archive filtering
+- `archive_file` — soft-hide a file from listings and searches; file remains readable by ID
+- `unarchive_file` — restore an archived file to active status
 
 **Project Tools**
 - `create_project` — create a named group for organizing files
@@ -74,6 +76,7 @@ The Briefcase watches configured directories in real time and sends standard MCP
 - [x] Create file
 - [x] Update file content
 - [x] Projects — group files and filter by project
+- [x] Archive — soft-hide files from listings and searches
 - [ ] Plug in architecture for custom extensions
 - [ ] Cloud storage backends (e.g. S3, OneDrive, Google Drive)
 - [ ] HTTP with Server-Sent Events
@@ -83,4 +86,4 @@ The Briefcase watches configured directories in real time and sends standard MCP
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-1.2.1
+1.3.0
