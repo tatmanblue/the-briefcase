@@ -1,0 +1,70 @@
+@if (Visible)
+{
+    <div class="modal-backdrop" @onclick="() => OnCancel.InvokeAsync()">
+        <div class="modal" @onclick:stopPropagation="true">
+            <h3>Assign "@FileName" to a project</h3>
+
+            <label class="field">
+                <label>
+                    <input type="radio" name="projectMode" checked="@(!creatingNew)" @onchange="() => creatingNew = false" />
+                    Existing project
+                </label>
+                <select @bind="selectedProjectId" disabled="@creatingNew">
+                    @foreach (var project in Projects.OrderBy(p => p.Name))
+                    {
+                        <option value="@project.Id">@project.Name</option>
+                    }
+                </select>
+            </label>
+
+            <label class="field">
+                <label>
+                    <input type="radio" name="projectMode" checked="@creatingNew" @onchange="() => creatingNew = true" />
+                    New project
+                </label>
+                <input type="text" @bind="newProjectName" placeholder="Project name" disabled="@(!creatingNew)" />
+            </label>
+
+            @if (!string.IsNullOrEmpty(Error))
+            {
+                <p class="error">@Error</p>
+            }
+
+            <div class="modal-actions">
+                <button class="btn" @onclick="() => OnCancel.InvokeAsync()" disabled="@Busy">Cancel</button>
+                <button class="btn btn-primary" @onclick="Confirm" disabled="@Busy">
+                    @(Busy ? "Assigning..." : "Assign")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string FileName { get; set; } = "";
+    [Parameter] public IReadOnlyList<ProjectEntry> Projects { get; set; } = [];
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback<(Guid? ExistingProjectId, string? NewProjectName)> OnConfirm { get; set; }
+
+    private bool creatingNew;
+    private string selectedProjectId = "";
+    private string newProjectName = "";
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrEmpty(selectedProjectId) && Projects.Count > 0)
+            selectedProjectId = Projects[0].Id.ToString();
+        creatingNew = Projects.Count == 0;
+    }
+
+    private async Task Confirm()
+    {
+        if (creatingNew)
+            await OnConfirm.InvokeAsync((null, newProjectName));
+        else
+            await OnConfirm.InvokeAsync((Guid.Parse(selectedProjectId), null));
+    }
+}

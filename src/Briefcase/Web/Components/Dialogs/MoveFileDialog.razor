@@ -1,0 +1,56 @@
+@if (Visible)
+{
+    <div class="modal-backdrop" @onclick="() => OnCancel.InvokeAsync()">
+        <div class="modal" @onclick:stopPropagation="true">
+            <h3>Move "@FileName"</h3>
+
+            <label class="field">
+                Destination directory
+                <select @bind="selectedRoot">
+                    @foreach (var root in Roots)
+                    {
+                        <option value="@root">@root</option>
+                    }
+                </select>
+            </label>
+
+            <label class="field">
+                Subfolder (optional)
+                <input type="text" @bind="subfolder" placeholder="e.g. archive\2026" />
+            </label>
+
+            @if (!string.IsNullOrEmpty(Error))
+            {
+                <p class="error">@Error</p>
+            }
+
+            <div class="modal-actions">
+                <button class="btn" @onclick="() => OnCancel.InvokeAsync()" disabled="@Busy">Cancel</button>
+                <button class="btn btn-primary" @onclick="Confirm" disabled="@Busy">
+                    @(Busy ? "Moving..." : "Move")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string FileName { get; set; } = "";
+    [Parameter] public IReadOnlyList<string> Roots { get; set; } = [];
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback<(string Root, string? Subfolder)> OnConfirm { get; set; }
+
+    private string selectedRoot = "";
+    private string? subfolder;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrEmpty(selectedRoot) && Roots.Count > 0)
+            selectedRoot = Roots[0];
+    }
+
+    private async Task Confirm() => await OnConfirm.InvokeAsync((selectedRoot, subfolder));
+}

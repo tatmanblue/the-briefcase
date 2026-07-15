@@ -70,6 +70,12 @@ See [Tools Reference](docs/tools.md) for full parameter and return-value details
 
 The Briefcase watches configured directories in real time and sends standard MCP resource notifications when files are created, deleted, renamed, or modified. See [Tools Reference](docs/tools.md#file-change-notifications) for details.
 
+## Web Interface
+
+The Briefcase also runs a local-only web UI (bound to `127.0.0.1`, never reachable off-box) alongside the MCP server, letting a human browse the same files agents see. Open `http://127.0.0.1:5289` (or your configured `BRIEFCASE_WEB_PORT`) to list files, view rendered Markdown, assign files to projects, and move or delete files. Move and delete are only available through the web UI — they are not exposed to agents, and delete sends files to the OS Recycle Bin/Trash rather than deleting them permanently.
+
+> The web UI's static assets require a **published** build (`dotnet publish`) — see [Setup](#setup). Running via `dotnet run` or a raw `dotnet build` output serves the page but leaves it non-interactive.
+
 ## Roadmap
 
 - [x] Search files by name and content
@@ -77,6 +83,7 @@ The Briefcase watches configured directories in real time and sends standard MCP
 - [x] Update file content
 - [x] Projects — group files and filter by project
 - [x] Archive — soft-hide files from listings and searches
+- [x] Web interface — list, view, move, and delete files from a browser
 - [ ] Plug in architecture for custom extensions
 - [ ] Cloud storage backends (e.g. S3, OneDrive, Google Drive)
 - [ ] HTTP with Server-Sent Events

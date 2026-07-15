@@ -1,0 +1,254 @@
+@page "/"
+@inject FileQueryService QueryService
+@inject ProjectRegistry ProjectRegistry
+@inject AppSettings Settings
+@inject FileOperationsService OperationsService
+@inject NavigationManager Nav
+
+<PageTitle>The Briefcase</PageTitle>
+
+<h1>Files</h1>
+
+<div class="toolbar">
+    <label>
+        Project
+        <select @bind="selectedProject" @bind:after="Refresh">
+            <option value="">All</option>
+            <option value="__unassigned__">Unassigned</option>
+            @foreach (var project in ProjectRegistry.GetAll().OrderBy(p => p.Name))
+            {
+                <option value="@project.Id">@project.Name</option>
+            }
+        </select>
+    </label>
+
+    <label>
+        Sort
+        <select @bind="sort" @bind:after="Refresh">
+            <option value="modified_desc">Newest first</option>
+            <option value="modified_asc">Oldest first</option>
+            <option value="name_asc">Name A-Z</option>
+            <option value="name_desc">Name Z-A</option>
+        </select>
+    </label>
+
+    <label class="checkbox">
+        <input type="checkbox" @bind="includeArchived" @bind:after="Refresh" />
+        Include archived
+    </label>
+</div>
+
+@if (loadError != null)
+{
+    <p class="error">@loadError</p>
+}
+else if (files == null)
+{
+    <p>Loading...</p>
+}
+else if (files.Count == 0)
+{
+    <p>No files found.</p>
+}
+else
+{
+    <table class="file-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Size</th>
+                <th>Last Modified</th>
+                <th>Project</th>
+                <th>Archived</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var file in files)
+            {
+                <tr>
+                    <td><a href="@($"files/{file.Id}")">@file.Name</a></td>
+                    <td>@FormatSize(file.Size)</td>
+                    <td>@(file.LastModified?.ToLocalTime().ToString("g") ?? "-")</td>
+                    <td>@(file.ProjectName ?? "-")</td>
+                    <td>@(file.IsArchived ? "Yes" : "")</td>
+                    <td class="actions">
+                        <button class="btn" @onclick="() => OpenAssignProject(file)">Project</button>
+                        <button class="btn" @onclick="() => OpenMove(file)">Move</button>
+                        <button class="btn btn-danger" @onclick="() => OpenDelete(file)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<MoveFileDialog Visible="moveVisible"
+                FileName="@(moveTarget?.Name ?? "")"
+                Roots="Settings.BriefcasePaths"
+                Busy="moveBusy"
+                Error="moveError"
+                OnCancel="CloseMove"
+                OnConfirm="ConfirmMove" />
+
+<ConfirmDeleteDialog Visible="deleteVisible"
+                     FileName="@(deleteTarget?.Name ?? "")"
+                     Busy="deleteBusy"
+                     Error="deleteError"
+                     OnCancel="CloseDelete"
+                     OnConfirm="ConfirmDelete" />
+
+<AssignProjectDialog Visible="assignVisible"
+                      FileName="@(assignTarget?.Name ?? "")"
+                      Projects="ProjectRegistry.GetAll()"
+                      Busy="assignBusy"
+                      Error="assignError"
+                      OnCancel="CloseAssignProject"
+                      OnConfirm="ConfirmAssignProject" />
+
+@code {
+    private IReadOnlyList<FileListItem>? files;
+    private string? loadError;
+
+    private string selectedProject = "";
+    private string sort = "modified_desc";
+    private bool includeArchived;
+
+    private FileListItem? moveTarget;
+    private bool moveVisible;
+    private bool moveBusy;
+    private string? moveError;
+
+    private FileListItem? deleteTarget;
+    private bool deleteVisible;
+    private bool deleteBusy;
+    private string? deleteError;
+
+    private FileListItem? assignTarget;
+    private bool assignVisible;
+    private bool assignBusy;
+    private string? assignError;
+
+    protected override void OnInitialized() => Refresh();
+
+    private void Refresh()
+    {
+        var options = new FileQueryOptions(
+            Limit: 0,
+            Sort: sort,
+            Project: selectedProject is "" or "__unassigned__" ? null : selectedProject,
+            Unassigned: selectedProject == "__unassigned__" ? true : null,
+            IncludeArchived: includeArchived ? true : null);
+
+        var (result, error) = QueryService.GetFiles(options);
+        files = result;
+        loadError = error;
+    }
+
+    private static string FormatSize(long? bytes)
+    {
+        if (bytes is null) return "-";
+        double size = bytes.Value;
+        string[] units = ["B", "KB", "MB", "GB"];
+        var unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.Length - 1)
+        {
+            size /= 1024;
+            unitIndex++;
+        }
+        return $"{size:0.#} {units[unitIndex]}";
+    }
+
+    private void OpenMove(FileListItem file)
+    {
+        moveTarget = file;
+        moveError = null;
+        moveVisible = true;
+    }
+
+    private void CloseMove()
+    {
+        moveVisible = false;
+        moveTarget = null;
+        moveError = null;
+    }
+
+    private async Task ConfirmMove((string Root, string? Subfolder) destination)
+    {
+        if (moveTarget is null) return;
+        moveBusy = true;
+        var error = await OperationsService.MoveFile(moveTarget.Id, destination.Root, destination.Subfolder);
+        moveBusy = false;
+
+        if (error != null)
+        {
+            moveError = error;
+            return;
+        }
+
+        CloseMove();
+        Refresh();
+    }
+
+    private void OpenDelete(FileListItem file)
+    {
+        deleteTarget = file;
+        deleteError = null;
+        deleteVisible = true;
+    }
+
+    private void CloseDelete()
+    {
+        deleteVisible = false;
+        deleteTarget = null;
+        deleteError = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deleteTarget is null) return;
+        deleteBusy = true;
+        var error = await OperationsService.DeleteFile(deleteTarget.Id);
+        deleteBusy = false;
+
+        if (error != null)
+        {
+            deleteError = error;
+            return;
+        }
+
+        CloseDelete();
+        Refresh();
+    }
+
+    private void OpenAssignProject(FileListItem file)
+    {
+        assignTarget = file;
+        assignError = null;
+        assignVisible = true;
+    }
+
+    private void CloseAssignProject()
+    {
+        assignVisible = false;
+        assignTarget = null;
+        assignError = null;
+    }
+
+    private async Task ConfirmAssignProject((Guid? ExistingProjectId, string? NewProjectName) selection)
+    {
+        if (assignTarget is null) return;
+        assignBusy = true;
+        var error = await OperationsService.AssignProject(assignTarget.Id, selection.ExistingProjectId, selection.NewProjectName);
+        assignBusy = false;
+
+        if (error != null)
+        {
+            assignError = error;
+            return;
+        }
+
+        CloseAssignProject();
+        Refresh();
+    }
+}

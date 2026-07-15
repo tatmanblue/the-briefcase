@@ -1,0 +1,240 @@
+@page "/files/{Id:guid}"
+@inject Briefcase.Registry.FileRegistry FileRegistry
+@inject Briefcase.Registry.ProjectRegistry ProjectRegistry
+@inject ContentRenderer Renderer
+@inject FileOperationsService OperationsService
+@inject AppSettings Settings
+@inject NavigationManager Nav
+
+<PageTitle>@(entry?.Name ?? "File")</PageTitle>
+
+<p><a href="/">&larr; Back to files</a></p>
+
+@if (notFound)
+{
+    <p class="error">File not found.</p>
+}
+else if (entry != null)
+{
+    <h1>@entry.Name</h1>
+
+    <div class="metadata">
+        <span>@FormatSize(fileSize)</span>
+        <span>Last modified @(lastModified?.ToLocalTime().ToString("g") ?? "-")</span>
+        <span>Project: @(currentProjectName ?? "None")</span>
+        @if (entry.IsArchived)
+        {
+            <span class="badge">Archived</span>
+        }
+    </div>
+
+    <div class="toolbar">
+        <label class="checkbox">
+            <input type="checkbox" @bind="showRaw" />
+            Show raw source
+        </label>
+        <button class="btn" @onclick="() => OpenAssignProject()">Project</button>
+        <button class="btn" @onclick="() => OpenMove()">Move</button>
+        <button class="btn btn-danger" @onclick="() => OpenDelete()">Delete</button>
+    </div>
+
+    @if (readError != null)
+    {
+        <p class="error">@readError</p>
+    }
+    else if (showRaw)
+    {
+        <pre class="raw-content">@content</pre>
+    }
+    else
+    {
+        <div class="rendered-content">
+            @((MarkupString)renderedHtml)
+        </div>
+    }
+}
+
+<MoveFileDialog Visible="moveVisible"
+                FileName="@(entry?.Name ?? "")"
+                Roots="Settings.BriefcasePaths"
+                Busy="moveBusy"
+                Error="moveError"
+                OnCancel="CloseMove"
+                OnConfirm="ConfirmMove" />
+
+<ConfirmDeleteDialog Visible="deleteVisible"
+                     FileName="@(entry?.Name ?? "")"
+                     Busy="deleteBusy"
+                     Error="deleteError"
+                     OnCancel="CloseDelete"
+                     OnConfirm="ConfirmDelete" />
+
+<AssignProjectDialog Visible="assignVisible"
+                      FileName="@(entry?.Name ?? "")"
+                      Projects="ProjectRegistry.GetAll()"
+                      Busy="assignBusy"
+                      Error="assignError"
+                      OnCancel="CloseAssignProject"
+                      OnConfirm="ConfirmAssignProject" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private Briefcase.Registry.RegistryEntry? entry;
+    private bool notFound;
+    private string content = "";
+    private string renderedHtml = "";
+    private string? readError;
+    private bool showRaw;
+    private long? fileSize;
+    private DateTime? lastModified;
+    private string? currentProjectName;
+
+    private bool moveVisible;
+    private bool moveBusy;
+    private string? moveError;
+
+    private bool deleteVisible;
+    private bool deleteBusy;
+    private string? deleteError;
+
+    private bool assignVisible;
+    private bool assignBusy;
+    private string? assignError;
+
+    protected override void OnParametersSet() => Load();
+
+    private void Load()
+    {
+        entry = FileRegistry.GetById(Id);
+        if (entry is null)
+        {
+            notFound = true;
+            return;
+        }
+
+        notFound = false;
+        readError = null;
+
+        if (!File.Exists(entry.AbsolutePath))
+        {
+            readError = $"File '{entry.Name}' is registered but no longer exists on disk.";
+            return;
+        }
+
+        var info = new FileInfo(entry.AbsolutePath);
+        fileSize = info.Length;
+        lastModified = info.LastWriteTimeUtc;
+        currentProjectName = ProjectRegistry.FindProjectForFile(entry.Id)?.projectName;
+
+        try
+        {
+            content = File.ReadAllText(entry.AbsolutePath);
+            renderedHtml = Renderer.RenderToHtml(entry.Name, content);
+        }
+        catch (Exception ex)
+        {
+            readError = $"Failed to read file '{entry.Name}': {ex.Message}";
+        }
+    }
+
+    private static string FormatSize(long? bytes)
+    {
+        if (bytes is null) return "-";
+        double size = bytes.Value;
+        string[] units = ["B", "KB", "MB", "GB"];
+        var unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.Length - 1)
+        {
+            size /= 1024;
+            unitIndex++;
+        }
+        return $"{size:0.#} {units[unitIndex]}";
+    }
+
+    private void OpenMove()
+    {
+        moveError = null;
+        moveVisible = true;
+    }
+
+    private void CloseMove()
+    {
+        moveVisible = false;
+        moveError = null;
+    }
+
+    private async Task ConfirmMove((string Root, string? Subfolder) destination)
+    {
+        if (entry is null) return;
+        moveBusy = true;
+        var error = await OperationsService.MoveFile(entry.Id, destination.Root, destination.Subfolder);
+        moveBusy = false;
+
+        if (error != null)
+        {
+            moveError = error;
+            return;
+        }
+
+        CloseMove();
+        Load();
+    }
+
+    private void OpenDelete()
+    {
+        deleteError = null;
+        deleteVisible = true;
+    }
+
+    private void CloseDelete()
+    {
+        deleteVisible = false;
+        deleteError = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (entry is null) return;
+        deleteBusy = true;
+        var error = await OperationsService.DeleteFile(entry.Id);
+        deleteBusy = false;
+
+        if (error != null)
+        {
+            deleteError = error;
+            return;
+        }
+
+        Nav.NavigateTo("/");
+    }
+
+    private void OpenAssignProject()
+    {
+        assignError = null;
+        assignVisible = true;
+    }
+
+    private void CloseAssignProject()
+    {
+        assignVisible = false;
+        assignError = null;
+    }
+
+    private async Task ConfirmAssignProject((Guid? ExistingProjectId, string? NewProjectName) selection)
+    {
+        if (entry is null) return;
+        assignBusy = true;
+        var error = await OperationsService.AssignProject(entry.Id, selection.ExistingProjectId, selection.NewProjectName);
+        assignBusy = false;
+
+        if (error != null)
+        {
+            assignError = error;
+            return;
+        }
+
+        CloseAssignProject();
+        Load();
+    }
+}

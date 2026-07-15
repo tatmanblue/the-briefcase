@@ -40,9 +40,28 @@ BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB=512
 # Enables the word-set cache for content search (optional, default false)
 # When true, reindex_files rebuilds this cache so subsequent searches are faster
 BRIEFCASE_SEARCH_CACHE_ENABLED=false
+
+# Port the local web interface listens on, bound to 127.0.0.1 only (optional, default 5289)
+BRIEFCASE_WEB_PORT=5289
 ```
 
-## 3. Wire it into your MCP client
+## 3. Web interface
+
+Once the server is running, open `http://127.0.0.1:5289` (or your configured `BRIEFCASE_WEB_PORT`) in a browser on the same machine. It lets you list and view files, and move or delete them — these actions are only available through the web UI, not to agents. Deleted files go to the Recycle Bin, not permanent deletion.
+
+## 4. Build for use
+
+```
+dotnet publish src/Briefcase/Briefcase.csproj -r win-x64 -o publish
+```
+
+> **Why publish, not `dotnet run`?** The web interface's static assets (its JS/CSS) are only
+> guaranteed available in a published build. `dotnet run` and a plain `dotnet build` output run in
+> Production mode by default, where those assets aren't served — the page loads but nothing is
+> interactive (buttons/dropdowns silently do nothing). Always point your MCP client at a published
+> `Briefcase.exe`, not a `bin\Debug\...` or `bin\Release\...` build output.
+
+## 5. Wire it into your MCP client
 
 **Claude Code** — add to your `claude_mcp_config.json` (or project-level `.mcp.json`):
 
@@ -51,8 +70,7 @@ BRIEFCASE_SEARCH_CACHE_ENABLED=false
   "servers": {
     "briefcase": {
       "type": "stdio",
-      "command": "dotnet",
-      "args": ["run", "--project", "C:\\path\\to\\the-briefcase\\src\\Briefcase"]
+      "command": "C:\\path\\to\\the-briefcase\\publish\\Briefcase.exe"
     }
   }
 }
@@ -65,9 +83,10 @@ BRIEFCASE_SEARCH_CACHE_ENABLED=false
   "servers": {
     "briefcase": {
       "type": "stdio",
-      "command": "dotnet",
-      "args": ["run", "--project", "C:\\path\\to\\the-briefcase\\src\\Briefcase"]
+      "command": "C:\\path\\to\\the-briefcase\\publish\\Briefcase.exe"
     }
   }
 }
 ```
+
+Re-run the `dotnet publish` command above after pulling changes to pick up updates, then restart your MCP client's connection to the server.

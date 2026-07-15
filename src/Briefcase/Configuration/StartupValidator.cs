@@ -22,6 +22,8 @@ public static class StartupValidator
         if (!string.IsNullOrEmpty(settings.NewPath))
             Console.Error.WriteLine($"[Briefcase] New files directory: {settings.NewPath}");
 
+        Console.Error.WriteLine($"[Briefcase] Web interface: http://127.0.0.1:{settings.WebPort}");
+
         if (settings.BriefcasePaths.Length == 0)
         {
             Console.Error.WriteLine("[Briefcase] WARNING: BRIEFCASE_PATHS is not set. No files will be visible to agents.");

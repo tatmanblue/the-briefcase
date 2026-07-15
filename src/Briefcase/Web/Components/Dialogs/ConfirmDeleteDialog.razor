@@ -1,0 +1,28 @@
+@if (Visible)
+{
+    <div class="modal-backdrop" @onclick="() => OnCancel.InvokeAsync()">
+        <div class="modal" @onclick:stopPropagation="true">
+            <h3>Delete "@FileName"?</h3>
+            <p>This sends the file to the Recycle Bin / Trash. It is not permanently deleted.</p>
+            @if (!string.IsNullOrEmpty(Error))
+            {
+                <p class="error">@Error</p>
+            }
+            <div class="modal-actions">
+                <button class="btn" @onclick="() => OnCancel.InvokeAsync()" disabled="@Busy">Cancel</button>
+                <button class="btn btn-danger" @onclick="() => OnConfirm.InvokeAsync()" disabled="@Busy">
+                    @(Busy ? "Deleting..." : "Delete")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string FileName { get; set; } = "";
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+}

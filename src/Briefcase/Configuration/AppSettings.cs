@@ -13,4 +13,6 @@ public class AppSettings
     // Negative or zero means no size cap.
     public int SearchMaxFileSizeKb { get; init; } = 512;
     public bool SearchCacheEnabled { get; init; } = false;
+    // Port the local-only web UI listens on (bound to 127.0.0.1 only).
+    public int WebPort { get; init; } = 5289;
 }

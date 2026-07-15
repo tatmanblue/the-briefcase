@@ -7,9 +7,13 @@ namespace Briefcase.Registry;
 
 public class FileRegistry
 {
+    // Windows file paths are case-insensitive; most other platforms are case-sensitive.
+    private static readonly StringComparer PathComparer =
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
     private readonly string registryFilePath;
     private readonly Dictionary<Guid, RegistryEntry> entriesById = new();
-    private readonly Dictionary<string, Guid> pathToId = new();
+    private readonly Dictionary<string, Guid> pathToId = new(PathComparer);
     private readonly object lockObject = new();
     private readonly IgnoreRules ignoreRules;
     private readonly string[] watchedRoots;
@@ -30,6 +34,11 @@ public class FileRegistry
         this.logger.LogInformation("Registry loaded with {Count} entries.", entriesById.Count);
     }
 
+    // Canonicalizes slashes and relative segments so the same physical file always maps to the
+    // same dictionary key, even if it was registered under a differently-formatted path string
+    // (e.g. mixed slashes) in a previous run.
+    private static string NormalizePath(string path) => Path.GetFullPath(path);
+
     public IReadOnlyList<RegistryEntry> GetAll()
     {
         lock (lockObject)
@@ -44,6 +53,8 @@ public class FileRegistry
 
     public Guid? AddOrUpdate(string absolutePath)
     {
+        absolutePath = NormalizePath(absolutePath);
+
         if (ignoreRules.IsExcluded(absolutePath, watchedRoots))
         {
             logger.LogDebug("Skipping excluded file: {Path}", absolutePath);
@@ -66,6 +77,8 @@ public class FileRegistry
 
     public void Remove(string absolutePath)
     {
+        absolutePath = NormalizePath(absolutePath);
+
         lock (lockObject)
         {
             if (!pathToId.TryGetValue(absolutePath, out var id))
@@ -80,6 +93,9 @@ public class FileRegistry
 
     public void Rename(string oldPath, string newPath)
     {
+        oldPath = NormalizePath(oldPath);
+        newPath = NormalizePath(newPath);
+
         lock (lockObject)
         {
             if (!pathToId.TryGetValue(oldPath, out var id))
@@ -116,8 +132,23 @@ public class FileRegistry
             var entries = JsonSerializer.Deserialize<List<RegistryEntry>>(json) ?? [];
             foreach (var entry in entries)
             {
+                var normalizedPath = NormalizePath(entry.AbsolutePath);
+
+                // Self-heal duplicate entries left over from before paths were normalized
+                // consistently (e.g. mixed slash styles for the same physical file). The first
+                // entry seen for a given path wins — earlier entries are more likely to carry
+                // project associations or other state agents/users already depend on.
+                if (pathToId.ContainsKey(normalizedPath))
+                {
+                    logger.LogWarning(
+                        "Dropping duplicate registry entry for {Path}: kept {KeptId}, dropped {DroppedId}.",
+                        normalizedPath, pathToId[normalizedPath], entry.Id);
+                    continue;
+                }
+
+                entry.AbsolutePath = normalizedPath;
                 entriesById[entry.Id] = entry;
-                pathToId[entry.AbsolutePath] = entry.Id;
+                pathToId[normalizedPath] = entry.Id;
             }
         }
         catch (Exception ex)
@@ -179,8 +210,10 @@ public class FileRegistry
                 continue;
             }
 
-            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+            foreach (var rawFile in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
             {
+                var file = NormalizePath(rawFile);
+
                 if (pathToId.ContainsKey(file))
                     continue;
 

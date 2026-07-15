@@ -9,7 +9,7 @@ The server will support the following operations:
 - List Files available
 - Send agents updates on file changes (File Change Notifications)
 
-These features will be saved for a future version:
+These features will be saved for a future version (note search is not implemented in V1.3):
 - Search for files (searches for files based on name and content)
 
 The MCP server will not expose direct file system access to agents. Instead, it will provide an API for agents to interact with files in a controlled manner.

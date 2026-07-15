@@ -1,22 +1,17 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Briefcase.Configuration;
-using Briefcase.Registry;
+using Briefcase.Services;
 using ModelContextProtocol.Server;
 
 namespace Briefcase.Tools;
 
 internal class ListFilesTool
 {
-    private readonly FileRegistry registry;
-    private readonly ProjectRegistry projectRegistry;
-    private readonly AppSettings appSettings;
+    private readonly FileQueryService queryService;
 
-    public ListFilesTool(FileRegistry registry, ProjectRegistry projectRegistry, AppSettings appSettings)
+    public ListFilesTool(FileQueryService queryService)
     {
-        this.registry = registry;
-        this.projectRegistry = projectRegistry;
-        this.appSettings = appSettings;
+        this.queryService = queryService;
     }
 
     [McpServerTool(Name = "list_files")]
@@ -45,84 +40,21 @@ internal class ListFilesTool
         [Description("When true, includes archived files alongside active files in the results.")] bool? includeArchived = null,
         [Description("When true, returns only archived files. Cannot be combined with includeArchived=false.")] bool? archivedOnly = null)
     {
-        if (project != null && unassigned == true)
-            return JsonSerializer.Serialize(new { error = "Cannot specify both 'project' and 'unassigned'." });
+        var (files, error) = queryService.GetFiles(new FileQueryOptions(limit, sort, project, unassigned, includeArchived, archivedOnly));
+        if (error != null)
+            return JsonSerializer.Serialize(new { error });
 
-        if (archivedOnly == true && includeArchived == false)
-            return JsonSerializer.Serialize(new { error = "Cannot specify 'archivedOnly' with 'includeArchived' set to false." });
-
-        Guid? filterProjectId = null;
-        if (project != null)
+        var result = files!.Select(f => new
         {
-            ProjectEntry? projectEntry = Guid.TryParse(project, out var parsedGuid)
-                ? projectRegistry.GetById(parsedGuid)
-                : projectRegistry.GetByName(project);
+            id = f.Id,
+            name = f.Name,
+            size = f.Size,
+            lastModified = f.LastModified,
+            projectId = f.ProjectId,
+            projectName = f.ProjectName,
+            isArchived = f.IsArchived
+        });
 
-            if (projectEntry == null)
-                return JsonSerializer.Serialize(new { error = $"Project '{project}' not found." });
-
-            filterProjectId = projectEntry.Id;
-        }
-
-        var entries = registry.GetAll()
-            .Select(entry =>
-            {
-                var info = new FileInfo(entry.AbsolutePath);
-                var proj = projectRegistry.FindProjectForFile(entry.Id);
-                return new
-                {
-                    id = entry.Id,
-                    name = entry.Name,
-                    size = info.Exists ? info.Length : (long?)null,
-                    lastModified = info.Exists ? info.LastWriteTimeUtc : (DateTime?)null,
-                    projectId = proj?.projectId,
-                    projectName = proj?.projectName,
-                    isArchived = entry.IsArchived
-                };
-            })
-            .ToList();
-
-        // Apply archive filter on the strongly-typed list before handing off to the dynamic pipeline
-        var afterArchiveFilter = archivedOnly == true
-            ? entries.Where(f => f.isArchived).ToList()
-            : includeArchived != true
-                ? entries.Where(f => !f.isArchived).ToList()
-                : entries;
-
-        // Apply project / unassigned filter
-        IEnumerable<dynamic> filtered = afterArchiveFilter;
-        if (filterProjectId.HasValue)
-            filtered = afterArchiveFilter.Where(f => f.projectId == filterProjectId);
-        else if (unassigned == true)
-            filtered = afterArchiveFilter.Where(f => f.projectId == null);
-
-        var sortKey = (sort ?? "modified_desc").Trim().ToLowerInvariant();
-        IEnumerable<dynamic> sorted = sortKey switch
-        {
-            "modified_asc" => filtered.OrderBy(f => f.lastModified ?? DateTime.MinValue),
-            "name_asc"     => filtered.OrderBy(f => (string)f.name, StringComparer.OrdinalIgnoreCase),
-            "name_desc"    => filtered.OrderByDescending(f => (string)f.name, StringComparer.OrdinalIgnoreCase),
-            "default"      => filtered,
-            _              => filtered.OrderByDescending(f => f.lastModified ?? DateTime.MinValue)
-        };
-
-        int effectiveLimit = limit.HasValue ? limit.Value : appSettings.ListFilesDefaultLimit;
-        if (effectiveLimit > 0)
-            sorted = sorted.Take(effectiveLimit);
-
-        var files = sorted
-            .Select(f => new
-            {
-                id = f.id,
-                name = f.name,
-                size = f.size,
-                lastModified = f.lastModified,
-                projectId = f.projectId,
-                projectName = f.projectName,
-                isArchived = f.isArchived
-            })
-            .ToList();
-
-        return JsonSerializer.Serialize(files, new JsonSerializerOptions { WriteIndented = true });
+        return JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
     }
 }
