@@ -36,7 +36,7 @@ Agents are able to search, read, create, and update the files made available thr
 
 ## Status
 
-Version 1.2 — Prototype. Local file system only.
+Version 1.3 — MVP using stdio and Local file system only.
 
 ## Setup
 
@@ -93,4 +93,4 @@ The Briefcase also runs a local-only web UI (bound to `127.0.0.1`, never reachab
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-1.3.0
+1.3.1
