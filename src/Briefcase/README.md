@@ -22,7 +22,7 @@ BRIEFCASE_DATA_PATH=C:\Users\you\.briefcase
 dotnet run
 ```
 
-The server communicates over stdio and will start scanning the configured paths immediately.
+The server communicates over HTTP, binding to `http://127.0.0.1:{BRIEFCASE_WEB_PORT}` (default 5289) with the MCP endpoint at `/mcp`, and will start scanning the configured paths immediately.
 
 ## Project structure
 
@@ -51,19 +51,20 @@ Publish to NuGet.org:
 dotnet nuget push bin/Release/*.nupkg --api-key <your-api-key> --source https://api.nuget.org/v3/index.json
 ```
 
-Once published, clients can run it without cloning the repo using the `dnx` command:
+Once published, clients can run it without cloning the repo using the `dnx` command to fetch and start it, then connect over HTTP:
 
 ```json
 {
   "servers": {
     "briefcase": {
-      "type": "stdio",
-      "command": "dnx",
-      "args": ["TheBriefcase", "--version", "0.1.0-alpha", "--yes"]
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:5289/mcp"
     }
   }
 }
 ```
+
+Unlike the old stdio spawn-per-session model, the server is a persistent process — it needs to already be running before a client connects.
 
 ## Supported platforms
 

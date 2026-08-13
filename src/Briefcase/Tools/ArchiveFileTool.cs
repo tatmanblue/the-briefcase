@@ -24,13 +24,14 @@ internal class ArchiveFileTool
         "Use 'unarchive_file' to restore it to active status. " +
         "Archiving an already-archived file succeeds without error.")]
     public async Task<string> ArchiveFile(
+        McpServer server,
         [Description("The file ID (GUID) returned by list_files.")] Guid id)
     {
         var entry = fileRegistry.Archive(id);
         if (entry == null)
             return JsonSerializer.Serialize(new { error = "File not found." });
 
-        await notificationDispatcher.SendListChangedAsync();
+        await notificationDispatcher.SendListChangedAsync(server);
 
         var info = new FileInfo(entry.AbsolutePath);
         return JsonSerializer.Serialize(

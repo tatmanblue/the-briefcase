@@ -19,7 +19,7 @@ The MCP server will be designed to be extensible, allowing for future support of
 The MCP server will not leak any information about the underlying file system to agents. Agents will only be able to interact with files through the API provided by the MCP server.
 Files are identified by stable GUIDs that persist across server restarts (stored in `registry.json`). The path for storing this information comes from the `BRIEFCASE_DATA_PATH` environment variable.
 
-Transport: stdio.
+Transport: HTTP (stdio was removed in 1.3.2).
 
 # Current Status — V1.3 (prototype)
 
@@ -39,7 +39,7 @@ All V1, V1.1, V1.2, and V1.3 features are implemented and the project builds cle
 - `FileRegistry` — persistent GUID↔path mapping stored as `registry.json` in `BRIEFCASE_DATA_PATH`. Scans all configured paths recursively on startup; prunes stale entries; survives restarts. Stores `IsArchived` state per entry.
 - `ProjectRegistry` — persistent project store (`project-{guid}.json` per project) with reverse file→project index.
 - `FileWatcher` — wraps `FileSystemWatcher` on each configured path (recursive). Detects create, change, delete, rename events and updates the registry. Rename preserves archive state.
-- `NotificationDispatcher` — hosted service that bridges watcher events to MCP protocol notifications:
+- `NotificationDispatcher` — singleton that bridges watcher events to MCP protocol notifications. Since HTTP transport gives each session its own `McpServer`, tools pass their session's `McpServer` into its methods rather than it holding one injected instance:
   - Create / delete / rename / archive / unarchive → `notifications/resources/list_changed`
   - Content change → `notifications/resources/updated` with URI `briefcase://file/{path}`
   - Project mutations → `notifications/projects/list_changed`
@@ -75,7 +75,8 @@ Copy `src/Briefcase/.env.example` to `src/Briefcase/.env` to configure locally.
 # Technology
 
 - C# / .NET 10
-- `ModelContextProtocol` 1.2.0 (Microsoft MCP C# SDK) — stdio transport
+- `ModelContextProtocol` 1.2.0 (Microsoft MCP C# SDK) — core SDK
+- `ModelContextProtocol.AspNetCore` 1.2.0 — HTTP transport (`WithHttpTransport()`, `MapMcp("/mcp")`)
 - `DotNetEnv` 3.1.1 — `.env` file loading
 - `Microsoft.Extensions.Hosting` — DI and hosted services
 - Project scaffolded with `Microsoft.McpServer.ProjectTemplates` (`dotnet new mcpserver`)

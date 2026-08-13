@@ -1,5 +1,4 @@
 using Briefcase.Configuration;
-using Briefcase.Notifications;
 using Briefcase.Registry;
 using Briefcase.Services.Trash;
 
@@ -9,25 +8,28 @@ namespace Briefcase.Services;
 // not exposed as MCP tools — agents keep the tools they have today (archive_file is the only
 // agent-facing removal mechanism). Project assignment mirrors create_project/add_file_to_project,
 // which are already agent-accessible, so it carries no extra safety concerns.
+//
+// These actions used to notify the connected MCP client via NotificationDispatcher so an agent's
+// view would refresh after a human made a change from the web UI. Under the HTTP transport there
+// is no single "the" session to notify -- a web UI action isn't tied to any MCP session at all, and
+// broadcasting to every currently-connected session is a real feature this doesn't attempt (no
+// session registry exists yet). Dropped for now rather than left silently broken.
 public class FileOperationsService
 {
     private readonly FileRegistry fileRegistry;
     private readonly ProjectRegistry projectRegistry;
     private readonly AppSettings appSettings;
-    private readonly NotificationDispatcher notificationDispatcher;
     private readonly ITrashService trashService;
 
     public FileOperationsService(
         FileRegistry fileRegistry,
         ProjectRegistry projectRegistry,
         AppSettings appSettings,
-        NotificationDispatcher notificationDispatcher,
         ITrashService trashService)
     {
         this.fileRegistry = fileRegistry;
         this.projectRegistry = projectRegistry;
         this.appSettings = appSettings;
-        this.notificationDispatcher = notificationDispatcher;
         this.trashService = trashService;
     }
 
@@ -71,7 +73,6 @@ public class FileOperationsService
         }
 
         fileRegistry.Rename(entry.AbsolutePath, destinationPath);
-        await notificationDispatcher.SendListChangedAsync();
         return null;
     }
 
@@ -95,7 +96,6 @@ public class FileOperationsService
 
         fileRegistry.Remove(entry.AbsolutePath);
         projectRegistry.PruneFileId(id);
-        await notificationDispatcher.SendListChangedAsync();
         return null;
     }
 
@@ -125,7 +125,6 @@ public class FileOperationsService
         }
 
         projectRegistry.AddFile(projectId, fileId);
-        await notificationDispatcher.SendProjectListChangedAsync();
         return null;
     }
 

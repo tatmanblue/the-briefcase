@@ -23,6 +23,7 @@ public static class StartupValidator
             Console.Error.WriteLine($"[Briefcase] New files directory: {settings.NewPath}");
 
         Console.Error.WriteLine($"[Briefcase] Web interface: http://127.0.0.1:{settings.WebPort}");
+        Console.Error.WriteLine($"[Briefcase] MCP endpoint: http://127.0.0.1:{settings.WebPort}/mcp");
 
         if (settings.BriefcasePaths.Length == 0)
         {

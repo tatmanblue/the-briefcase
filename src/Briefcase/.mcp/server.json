@@ -2,14 +2,15 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "description": "An MCP server that gives agents controlled access to files outside their working directory.",
   "name": "the-briefcase",
-  "version": "0.1.0-alpha",
+  "version": "2.0.0",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "TheBriefcase",
-      "version": "0.1.0-alpha",
+      "version": "2.0.0",
       "transport": {
-        "type": "stdio"
+        "type": "streamable-http",
+        "url": "http://127.0.0.1:5289/mcp"
       },
       "packageArguments": [],
       "environmentVariables": [

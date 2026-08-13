@@ -23,12 +23,13 @@ internal class DeleteProjectTool
     [Description(
         "Deletes a project. All member files remain in the Briefcase but lose their project association.")]
     public async Task<string> DeleteProject(
+        McpServer server,
         [Description("The project ID (GUID).")] Guid projectId)
     {
         if (!projectRegistry.Delete(projectId))
             return JsonSerializer.Serialize(new { error = "Project not found." });
 
-        await notificationDispatcher.SendProjectListChangedAsync();
+        await notificationDispatcher.SendProjectListChangedAsync(server);
 
         return JsonSerializer.Serialize(
             new { success = true, projectId },

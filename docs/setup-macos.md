@@ -63,14 +63,16 @@ dotnet publish src/Briefcase/Briefcase.csproj -r osx-arm64 -o publish
 
 ## 5. Wire it into your MCP client
 
+The server speaks HTTP, not stdio — it's a persistent process, not something your MCP client spawns on demand. Start it first and leave it running, then point your client at its `/mcp` endpoint. The easiest way to keep it running is `scripts/install-macos.sh`, which installs Briefcase as a LaunchAgent: started at login, restarted automatically if it crashes. Otherwise, run `publish/Briefcase` directly in a terminal.
+
 **Claude Code** — add to your `claude_mcp_config.json` (or project-level `.mcp.json`):
 
 ```json
 {
   "servers": {
     "briefcase": {
-      "type": "stdio",
-      "command": "/path/to/the-briefcase/publish/Briefcase"
+      "type": "http",
+      "url": "http://127.0.0.1:5289/mcp"
     }
   }
 }
@@ -82,11 +84,13 @@ dotnet publish src/Briefcase/Briefcase.csproj -r osx-arm64 -o publish
 {
   "servers": {
     "briefcase": {
-      "type": "stdio",
-      "command": "/path/to/the-briefcase/publish/Briefcase"
+      "type": "http",
+      "url": "http://127.0.0.1:5289/mcp"
     }
   }
 }
 ```
 
-Re-run the `dotnet publish` command above after pulling changes to pick up updates, then restart your MCP client's connection to the server.
+Adjust the port if you set `BRIEFCASE_WEB_PORT` to something other than the default 5289.
+
+Re-run the `dotnet publish` command above after pulling changes to pick up updates, then restart the server and your MCP client's connection to it.
