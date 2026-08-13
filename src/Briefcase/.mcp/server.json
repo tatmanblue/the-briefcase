@@ -9,7 +9,8 @@
       "identifier": "TheBriefcase",
       "version": "0.1.0-alpha",
       "transport": {
-        "type": "stdio"
+        "type": "streamable-http",
+        "url": "http://127.0.0.1:5289/mcp"
       },
       "packageArguments": [],
       "environmentVariables": [
