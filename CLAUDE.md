@@ -39,7 +39,7 @@ All V1, V1.1, V1.2, and V1.3 features are implemented and the project builds cle
 - `FileRegistry` — persistent GUID↔path mapping stored as `registry.json` in `BRIEFCASE_DATA_PATH`. Scans all configured paths recursively on startup; prunes stale entries; survives restarts. Stores `IsArchived` state per entry.
 - `ProjectRegistry` — persistent project store (`project-{guid}.json` per project) with reverse file→project index.
 - `FileWatcher` — wraps `FileSystemWatcher` on each configured path (recursive). Detects create, change, delete, rename events and updates the registry. Rename preserves archive state.
-- `NotificationDispatcher` — hosted service that bridges watcher events to MCP protocol notifications:
+- `NotificationDispatcher` — singleton that bridges watcher events to MCP protocol notifications. Since HTTP transport gives each session its own `McpServer`, tools pass their session's `McpServer` into its methods rather than it holding one injected instance:
   - Create / delete / rename / archive / unarchive → `notifications/resources/list_changed`
   - Content change → `notifications/resources/updated` with URI `briefcase://file/{path}`
   - Project mutations → `notifications/projects/list_changed`
