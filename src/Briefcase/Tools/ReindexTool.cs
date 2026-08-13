@@ -21,9 +21,9 @@ internal class ReindexTool
         "If the search cache is enabled, rebuilds it fully so subsequent searches are fast. " +
         "Blocks until the reindex is complete. " +
         "If a reindex is already in progress, returns immediately with status 'already_running'.")]
-    public async Task<string> ReindexFiles()
+    public async Task<string> ReindexFiles(McpServer server)
     {
-        var result = await reindexService.RunAsync();
+        var result = await reindexService.RunAsync(server);
 
         if (result.Status == "already_running")
             return JsonSerializer.Serialize(

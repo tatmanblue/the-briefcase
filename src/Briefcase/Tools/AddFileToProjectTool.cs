@@ -27,6 +27,7 @@ internal class AddFileToProjectTool
         "Associates a file with a project. A file can belong to at most one project. " +
         "If the file is already in another project it is moved to this one.")]
     public async Task<string> AddFileToProject(
+        McpServer server,
         [Description("The project ID (GUID).")] Guid projectId,
         [Description("The file ID (GUID) returned by list_files.")] Guid fileId)
     {
@@ -37,7 +38,7 @@ internal class AddFileToProjectTool
             return JsonSerializer.Serialize(new { error = "File not found." });
 
         projectRegistry.AddFile(projectId, fileId);
-        await notificationDispatcher.SendProjectListChangedAsync();
+        await notificationDispatcher.SendProjectListChangedAsync(server);
 
         return JsonSerializer.Serialize(
             new { success = true, projectId, fileId },

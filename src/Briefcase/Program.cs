@@ -98,11 +98,6 @@ var appSettings = new AppSettings
 if (!StartupValidator.Validate(appSettings, envFileLoaded))
     Environment.Exit(1);
 
-// The MCP stdio transport talks to the raw OS stdout handle directly (Console.OpenStandardOutput),
-// bypassing Console.Out entirely. Redirecting Console.Out here is free for the MCP stream and
-// catches any stray Console.WriteLine from ASP.NET Core internals or a third-party dependency.
-Console.SetOut(Console.Error);
-
 // ContentRootPath (and the WebRootPath derived from it) defaults to the process's current working
 // directory, which is unpredictable when an MCP client launches this exe directly — it's whatever
 // CWD the client happens to use, not necessarily this exe's own folder. Pin it explicitly so static
@@ -114,11 +109,7 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 });
 builder.WebHost.UseUrls($"http://127.0.0.1:{appSettings.WebPort}");
 
-// Suppress the "Now listening on..." / "Application started..." banner — it writes straight to
-// stdout via ConsoleLifetime and would corrupt the MCP JSON-RPC stream on stdout.
-builder.Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
-
-// Configure all logs to go to stderr (stdout is used for the MCP protocol messages).
+// Keep all logs on stderr — stdout is reserved for a human running this directly in a terminal.
 builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
 
 builder.Services.AddSingleton(appSettings);
@@ -127,8 +118,11 @@ builder.Services.AddSingleton<IgnoreRules>(sp =>
 builder.Services.AddSingleton<FileRegistry>();
 builder.Services.AddSingleton<ProjectRegistry>();
 builder.Services.AddSingleton<FileWatcher>();
+// Tools call this directly (passing their own tool-bound McpServer through) after mutating state.
+// See git history for the old FileWatcher-driven background push this replaced -- that required a
+// single shared, process-lifetime McpServer, which doesn't exist under the HTTP transport (each
+// session gets its own).
 builder.Services.AddSingleton<NotificationDispatcher>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<NotificationDispatcher>());
 builder.Services.AddSingleton<SearchCache>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<SearchCache>());
 builder.Services.AddSingleton<ReindexService>();
@@ -150,7 +144,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services
     .AddMcpServer()
-    .WithStdioServerTransport()
+    .WithHttpTransport()
     .WithTools<ListFilesTool>()
     .WithTools<ReadFileTool>()
     .WithTools<CreateFileTool>()
@@ -174,5 +168,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+app.MapMcp("/mcp");
 
 await app.RunAsync();

@@ -20,6 +20,7 @@ internal class CreateProjectTool
     [McpServerTool(Name = "create_project")]
     [Description("Creates a new project in the Briefcase. Project names must be unique. Returns the new project's ID.")]
     public async Task<string> CreateProject(
+        McpServer server,
         [Description("The project name. Must be unique.")] string name,
         [Description("A short description of the project.")] string description)
     {
@@ -30,7 +31,7 @@ internal class CreateProjectTool
         if (error != null)
             return JsonSerializer.Serialize(new { error });
 
-        await notificationDispatcher.SendProjectListChangedAsync();
+        await notificationDispatcher.SendProjectListChangedAsync(server);
 
         return JsonSerializer.Serialize(
             new

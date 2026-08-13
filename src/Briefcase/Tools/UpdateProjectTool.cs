@@ -22,6 +22,7 @@ internal class UpdateProjectTool
     [McpServerTool(Name = "update_project")]
     [Description("Updates a project's name and/or description. Omit a parameter to leave it unchanged.")]
     public async Task<string> UpdateProject(
+        McpServer server,
         [Description("The project ID (GUID).")] Guid projectId,
         [Description("New project name. Omit to keep current name.")] string? name = null,
         [Description("New project description. Omit to keep current description.")] string? description = null)
@@ -34,7 +35,7 @@ internal class UpdateProjectTool
             return JsonSerializer.Serialize(new { error });
 
         var entry = projectRegistry.GetById(projectId)!;
-        await notificationDispatcher.SendProjectListChangedAsync();
+        await notificationDispatcher.SendProjectListChangedAsync(server);
 
         return JsonSerializer.Serialize(
             new

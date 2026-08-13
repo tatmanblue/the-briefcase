@@ -2,6 +2,7 @@ using Briefcase.Notifications;
 using Briefcase.Registry;
 using Briefcase.Search;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Server;
 
 namespace Briefcase.Reindex;
 
@@ -28,7 +29,7 @@ public class ReindexService
         this.logger = logger;
     }
 
-    public async Task<ReindexResult> RunAsync()
+    public async Task<ReindexResult> RunAsync(McpServer server)
     {
         if (Interlocked.CompareExchange(ref reindexing, 1, 0) != 0)
             return ReindexResult.AlreadyRunning;
@@ -46,7 +47,7 @@ public class ReindexService
                 cacheBuilt = await Task.Run(() => searchCache.Rebuild(registry.GetAll()));
 
             if (added > 0 || pruned > 0)
-                await notificationDispatcher.SendListChangedAsync();
+                await notificationDispatcher.SendListChangedAsync(server);
 
             logger.LogInformation(
                 "Reindex completed: {Added} added, {Pruned} pruned, {CacheBuilt} cache entries built.",

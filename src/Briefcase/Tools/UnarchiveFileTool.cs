@@ -23,13 +23,14 @@ internal class UnarchiveFileTool
         "Project association is preserved through archive and unarchive. " +
         "Unarchiving an already-active file succeeds without error.")]
     public async Task<string> UnarchiveFile(
+        McpServer server,
         [Description("The file ID (GUID) of the archived file.")] Guid id)
     {
         var entry = fileRegistry.Unarchive(id);
         if (entry == null)
             return JsonSerializer.Serialize(new { error = "File not found." });
 
-        await notificationDispatcher.SendListChangedAsync();
+        await notificationDispatcher.SendListChangedAsync(server);
 
         var info = new FileInfo(entry.AbsolutePath);
         return JsonSerializer.Serialize(
