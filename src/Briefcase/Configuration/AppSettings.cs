@@ -15,4 +15,7 @@ public class AppSettings
     public bool SearchCacheEnabled { get; init; } = false;
     // Port the local-only web UI listens on (bound to 127.0.0.1 only).
     public int WebPort { get; init; } = 5289;
+    // File extensions the web UI allows creating/editing directly. Agents are unaffected --
+    // create_file/update_file work on any file regardless of this setting.
+    public string[] EditableExtensions { get; init; } = [".md", ".txt", ".json"];
 }

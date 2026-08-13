@@ -1,22 +1,17 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Briefcase.Configuration;
-using Briefcase.Registry;
+using Briefcase.Services;
 using ModelContextProtocol.Server;
 
 namespace Briefcase.Tools;
 
 internal class CreateFileTool
 {
-    private readonly AppSettings settings;
-    private readonly FileRegistry registry;
-    private readonly ProjectRegistry projectRegistry;
+    private readonly FileContentService fileContentService;
 
-    public CreateFileTool(AppSettings settings, FileRegistry registry, ProjectRegistry projectRegistry)
+    public CreateFileTool(FileContentService fileContentService)
     {
-        this.settings = settings;
-        this.registry = registry;
-        this.projectRegistry = projectRegistry;
+        this.fileContentService = fileContentService;
     }
 
     [McpServerTool(Name = "create_file")]
@@ -29,44 +24,19 @@ internal class CreateFileTool
         [Description("The full content of the new file.")] string content,
         [Description("Optional project ID (GUID) to associate the new file with. The call fails if the ID does not exist.")] Guid? projectId = null)
     {
-        if (string.IsNullOrEmpty(settings.NewPath))
-            return JsonSerializer.Serialize(new { error = "New-files directory is not configured (BRIEFCASE_NEW_PATH)." });
+        var result = fileContentService.CreateFile(name, content, projectId);
 
-        if (projectId.HasValue && projectRegistry.GetById(projectId.Value) == null)
-            return JsonSerializer.Serialize(new { error = $"Project '{projectId.Value}' not found." });
-
-        var safeName = Path.GetFileName(name);
-        if (string.IsNullOrWhiteSpace(safeName))
-            return JsonSerializer.Serialize(new { error = "Invalid file name." });
-
-        var absolutePath = Path.Combine(settings.NewPath, safeName);
-
-        if (File.Exists(absolutePath))
-            return JsonSerializer.Serialize(new { error = $"A file named '{safeName}' already exists. Use update_file to overwrite it." });
-
-        try
-        {
-            File.WriteAllText(absolutePath, content);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new { error = $"Failed to write file '{safeName}': {ex.Message}" });
-        }
-
-        var fileId = registry.AddOrUpdate(absolutePath);
-        var info = new FileInfo(absolutePath);
-
-        if (projectId.HasValue && fileId.HasValue)
-            projectRegistry.AddFile(projectId.Value, fileId.Value);
+        if (!result.Success)
+            return JsonSerializer.Serialize(new { error = result.Error });
 
         return JsonSerializer.Serialize(
             new
             {
-                id = fileId,
-                name = safeName,
-                size = info.Length,
-                lastModified = info.LastWriteTimeUtc,
-                projectId
+                id = result.Id,
+                name = result.Name,
+                size = result.Size,
+                lastModified = result.LastModifiedUtc,
+                projectId = result.ProjectId
             },
             new JsonSerializerOptions { WriteIndented = true });
     }

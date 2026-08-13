@@ -1,0 +1,83 @@
+@page "/files/new"
+@inject FileContentService ContentService
+@inject Briefcase.Registry.ProjectRegistry ProjectRegistry
+@inject AppSettings Settings
+@inject NavigationManager Nav
+
+<PageTitle>New File</PageTitle>
+
+<p><a href="/">&larr; Back to files</a></p>
+
+<h1>New File</h1>
+
+<label class="field">
+    File name
+    <input type="text" @bind="name" placeholder="e.g. notes.md" />
+</label>
+
+<label class="field">
+    Project (optional)
+    <select @bind="selectedProjectId">
+        <option value="">None</option>
+        @foreach (var project in ProjectRegistry.GetAll().OrderBy(p => p.Name))
+        {
+            <option value="@project.Id">@project.Name</option>
+        }
+    </select>
+</label>
+
+<textarea class="edit-textarea" @bind="content" placeholder="File content"></textarea>
+
+@if (error != null)
+{
+    <p class="error">@error</p>
+}
+
+<div class="modal-actions">
+    <button class="btn" @onclick='() => Nav.NavigateTo("/")' disabled="@busy">Cancel</button>
+    <button class="btn btn-primary" @onclick="Save" disabled="@busy">
+        @(busy ? "Creating..." : "Create")
+    </button>
+</div>
+
+@code {
+    private string name = "";
+    private string content = "";
+    private string selectedProjectId = "";
+    private bool busy;
+    private string? error;
+
+    private void Save()
+    {
+        error = null;
+
+        var trimmedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            error = "Enter a file name.";
+            return;
+        }
+
+        var extension = Path.GetExtension(trimmedName);
+        if (!Settings.EditableExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        {
+            var shown = string.IsNullOrEmpty(extension) ? "(no extension)" : extension;
+            error = $"'{shown}' is not an allowed extension. Allowed: {string.Join(", ", Settings.EditableExtensions)}.";
+            return;
+        }
+
+        Guid? projectId = Guid.TryParse(selectedProjectId, out var parsed) ? parsed : null;
+
+        busy = true;
+        var result = ContentService.CreateFile(trimmedName, content, projectId);
+        busy = false;
+
+        if (!result.Success || result.Id is null)
+        {
+            error = result.Error;
+            return;
+        }
+
+        Nav.NavigateTo($"/files/{result.Id}");
+    }
+}

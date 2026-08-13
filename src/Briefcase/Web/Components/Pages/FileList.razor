@@ -36,6 +36,8 @@
         <input type="checkbox" @bind="includeArchived" @bind:after="Refresh" />
         Include archived
     </label>
+
+    <a class="btn btn-primary" href="/files/new">New File</a>
 </div>
 
 @if (loadError != null)
@@ -87,14 +89,14 @@ else
                 FileName="@(moveTarget?.Name ?? "")"
                 Roots="Settings.BriefcasePaths"
                 Busy="moveBusy"
-                Error="moveError"
+                Error="@moveError"
                 OnCancel="CloseMove"
                 OnConfirm="ConfirmMove" />
 
 <ConfirmDeleteDialog Visible="deleteVisible"
                      FileName="@(deleteTarget?.Name ?? "")"
                      Busy="deleteBusy"
-                     Error="deleteError"
+                     Error="@deleteError"
                      OnCancel="CloseDelete"
                      OnConfirm="ConfirmDelete" />
 
@@ -102,7 +104,7 @@ else
                       FileName="@(assignTarget?.Name ?? "")"
                       Projects="ProjectRegistry.GetAll()"
                       Busy="assignBusy"
-                      Error="assignError"
+                      Error="@assignError"
                       OnCancel="CloseAssignProject"
                       OnConfirm="ConfirmAssignProject" />
 

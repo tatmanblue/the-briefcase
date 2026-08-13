@@ -3,6 +3,7 @@
 @inject Briefcase.Registry.ProjectRegistry ProjectRegistry
 @inject ContentRenderer Renderer
 @inject FileOperationsService OperationsService
+@inject FileContentService ContentService
 @inject AppSettings Settings
 @inject NavigationManager Nav
 
@@ -29,10 +30,17 @@ else if (entry != null)
     </div>
 
     <div class="toolbar">
-        <label class="checkbox">
-            <input type="checkbox" @bind="showRaw" />
-            Show raw source
-        </label>
+        @if (!editMode)
+        {
+            <label class="checkbox">
+                <input type="checkbox" @bind="showRaw" />
+                Show raw source
+            </label>
+        }
+        @if (isEditable && !editMode)
+        {
+            <button class="btn" @onclick="StartEdit">Edit</button>
+        }
         <button class="btn" @onclick="() => OpenAssignProject()">Project</button>
         <button class="btn" @onclick="() => OpenMove()">Move</button>
         <button class="btn btn-danger" @onclick="() => OpenDelete()">Delete</button>
@@ -41,6 +49,20 @@ else if (entry != null)
     @if (readError != null)
     {
         <p class="error">@readError</p>
+    }
+    else if (editMode)
+    {
+        @if (editError != null)
+        {
+            <p class="error">@editError</p>
+        }
+        <textarea class="edit-textarea" @bind="editContent"></textarea>
+        <div class="modal-actions">
+            <button class="btn" @onclick="CancelEdit" disabled="@editBusy">Cancel</button>
+            <button class="btn btn-primary" @onclick="SaveEdit" disabled="@editBusy">
+                @(editBusy ? "Saving..." : "Save")
+            </button>
+        </div>
     }
     else if (showRaw)
     {
@@ -58,14 +80,14 @@ else if (entry != null)
                 FileName="@(entry?.Name ?? "")"
                 Roots="Settings.BriefcasePaths"
                 Busy="moveBusy"
-                Error="moveError"
+                Error="@moveError"
                 OnCancel="CloseMove"
                 OnConfirm="ConfirmMove" />
 
 <ConfirmDeleteDialog Visible="deleteVisible"
                      FileName="@(entry?.Name ?? "")"
                      Busy="deleteBusy"
-                     Error="deleteError"
+                     Error="@deleteError"
                      OnCancel="CloseDelete"
                      OnConfirm="ConfirmDelete" />
 
@@ -73,7 +95,7 @@ else if (entry != null)
                       FileName="@(entry?.Name ?? "")"
                       Projects="ProjectRegistry.GetAll()"
                       Busy="assignBusy"
-                      Error="assignError"
+                      Error="@assignError"
                       OnCancel="CloseAssignProject"
                       OnConfirm="ConfirmAssignProject" />
 
@@ -102,10 +124,19 @@ else if (entry != null)
     private bool assignBusy;
     private string? assignError;
 
+    private bool isEditable;
+    private bool editMode;
+    private string editContent = "";
+    private bool editBusy;
+    private string? editError;
+
     protected override void OnParametersSet() => Load();
 
     private void Load()
     {
+        editMode = false;
+        editError = null;
+
         entry = FileRegistry.GetById(Id);
         if (entry is null)
         {
@@ -115,6 +146,7 @@ else if (entry != null)
 
         notFound = false;
         readError = null;
+        isEditable = Settings.EditableExtensions.Contains(Path.GetExtension(entry.Name), StringComparer.OrdinalIgnoreCase);
 
         if (!File.Exists(entry.AbsolutePath))
         {
@@ -136,6 +168,36 @@ else if (entry != null)
         {
             readError = $"Failed to read file '{entry.Name}': {ex.Message}";
         }
+    }
+
+    private void StartEdit()
+    {
+        editContent = content;
+        editError = null;
+        editMode = true;
+    }
+
+    private void CancelEdit()
+    {
+        editMode = false;
+        editError = null;
+    }
+
+    private void SaveEdit()
+    {
+        if (entry is null || lastModified is null) return;
+
+        editBusy = true;
+        var result = ContentService.UpdateFile(entry.Id, editContent, lastModified);
+        editBusy = false;
+
+        if (!result.Success)
+        {
+            editError = result.Error;
+            return;
+        }
+
+        Load();
     }
 
     private static string FormatSize(long? bytes)

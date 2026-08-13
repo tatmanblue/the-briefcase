@@ -81,6 +81,14 @@ var webPort = int.TryParse(Environment.GetEnvironmentVariable("BRIEFCASE_WEB_POR
     ? parsedWebPort
     : 5289;
 
+var editableExtensionsRaw = Environment.GetEnvironmentVariable("BRIEFCASE_EDITABLE_EXTENSIONS");
+var editableExtensions = string.IsNullOrWhiteSpace(editableExtensionsRaw)
+    ? new[] { ".md", ".txt", ".json" }
+    : editableExtensionsRaw
+        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(ext => (ext.StartsWith('.') ? ext : "." + ext).ToLowerInvariant())
+        .ToArray();
+
 var appSettings = new AppSettings
 {
     BriefcasePaths = briefcasePaths,
@@ -91,7 +99,8 @@ var appSettings = new AppSettings
     SearchDefaultLimit = searchDefaultLimit,
     SearchMaxFileSizeKb = searchMaxFileSizeKb,
     SearchCacheEnabled = searchCacheEnabled,
-    WebPort = webPort
+    WebPort = webPort,
+    EditableExtensions = editableExtensions
 };
 
 // Validate configuration and exit with a clear message if anything is wrong.
@@ -128,6 +137,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<SearchCache>());
 builder.Services.AddSingleton<ReindexService>();
 builder.Services.AddSingleton<FileQueryService>();
 builder.Services.AddSingleton<FileOperationsService>();
+builder.Services.AddSingleton<FileContentService>();
 builder.Services.AddSingleton<ContentRenderer>();
 
 if (OperatingSystem.IsWindows())

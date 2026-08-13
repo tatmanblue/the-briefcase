@@ -36,7 +36,7 @@ Agents are able to search, read, create, and update the files made available thr
 
 ## Status
 
-Version 2.0 — MVP using HTTP and Local file system only.
+Version 2.1 — MVP using HTTP and Local file system only.
 
 __Please note:__ the stdio protocol has been removed as of 2.0.0 and is no longer supported. The Briefcase now only supports the HTTP protocol.
 
@@ -74,7 +74,9 @@ The Briefcase watches configured directories in real time and sends standard MCP
 
 ## Web Interface
 
-The Briefcase also runs a local-only web UI (bound to `127.0.0.1`, never reachable off-box) alongside the MCP server, letting a human browse the same files agents see. Open `http://127.0.0.1:5289` (or your configured `BRIEFCASE_WEB_PORT`) to list files, view rendered Markdown, assign files to projects, and move or delete files. Move and delete are only available through the web UI — they are not exposed to agents, and delete sends files to the OS Recycle Bin/Trash rather than deleting them permanently.
+The Briefcase also runs a local-only web UI (bound to `127.0.0.1`, never reachable off-box) alongside the MCP server, letting a human browse the same files agents see. Open `http://127.0.0.1:5289` (or your configured `BRIEFCASE_WEB_PORT`) to list files, view rendered Markdown, create new files, edit existing ones, assign files to projects, and move or delete files. Move and delete are only available through the web UI — they are not exposed to agents, and delete sends files to the OS Recycle Bin/Trash rather than deleting them permanently.
+
+Create and edit are only offered for file extensions on the editable whitelist (`.md`, `.txt`, `.json` by default; configurable via `BRIEFCASE_EDITABLE_EXTENSIONS`) — other file types stay view-only in the browser. This whitelist only affects the web UI; agents can still `create_file`/`update_file` any file regardless of extension. If an agent updates a file while it's open for editing in the browser, the agent's change wins — saving from the browser is rejected with a conflict message rather than overwriting it.
 
 > The web UI's static assets require a **published** build (`dotnet publish`) — see [Setup](#setup). Running via `dotnet run` or a raw `dotnet build` output serves the page but leaves it non-interactive.
 
@@ -85,7 +87,7 @@ The Briefcase also runs a local-only web UI (bound to `127.0.0.1`, never reachab
 - [x] Update file content
 - [x] Projects — group files and filter by project
 - [x] Archive — soft-hide files from listings and searches
-- [x] Web interface — list, view, move, and delete files from a browser
+- [x] Web interface — list, view, create, edit, move, and delete files from a browser
 - [ ] Plug in architecture for custom extensions
 - [ ] Cloud storage backends (e.g. S3, OneDrive, Google Drive)
 - [x] HTTP with Server-Sent Events
@@ -95,4 +97,4 @@ The Briefcase also runs a local-only web UI (bound to `127.0.0.1`, never reachab
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-2.0.0
+2.1.0
