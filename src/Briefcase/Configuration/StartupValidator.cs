@@ -24,6 +24,7 @@ public static class StartupValidator
 
         Console.Error.WriteLine($"[Briefcase] Web interface: http://127.0.0.1:{settings.WebPort}");
         Console.Error.WriteLine($"[Briefcase] MCP endpoint: http://127.0.0.1:{settings.WebPort}/mcp");
+        Console.Error.WriteLine($"[Briefcase] Web UI editable extensions: {string.Join(", ", settings.EditableExtensions)}");
 
         if (settings.BriefcasePaths.Length == 0)
         {

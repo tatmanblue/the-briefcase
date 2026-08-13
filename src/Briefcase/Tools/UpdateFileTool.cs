@@ -1,17 +1,17 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Briefcase.Registry;
+using Briefcase.Services;
 using ModelContextProtocol.Server;
 
 namespace Briefcase.Tools;
 
 internal class UpdateFileTool
 {
-    private readonly FileRegistry registry;
+    private readonly FileContentService fileContentService;
 
-    public UpdateFileTool(FileRegistry registry)
+    public UpdateFileTool(FileContentService fileContentService)
     {
-        this.registry = registry;
+        this.fileContentService = fileContentService;
     }
 
     [McpServerTool(Name = "update_file")]
@@ -20,31 +20,18 @@ internal class UpdateFileTool
         [Description("The file ID (GUID) returned by list_files or create_file.")] Guid id,
         [Description("The new full content of the file. The entire existing content is replaced.")] string content)
     {
-        var entry = registry.GetById(id);
-        if (entry is null)
-            return JsonSerializer.Serialize(new { error = $"No file found with ID '{id}'." });
+        var result = fileContentService.UpdateFile(id, content);
 
-        if (!File.Exists(entry.AbsolutePath))
-            return JsonSerializer.Serialize(new { error = $"File '{entry.Name}' is registered but no longer exists on disk." });
-
-        try
-        {
-            File.WriteAllText(entry.AbsolutePath, content);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new { error = $"Failed to write file '{entry.Name}': {ex.Message}" });
-        }
-
-        var info = new FileInfo(entry.AbsolutePath);
+        if (!result.Success)
+            return JsonSerializer.Serialize(new { error = result.Error });
 
         return JsonSerializer.Serialize(
             new
             {
-                id = entry.Id,
-                name = entry.Name,
-                size = info.Length,
-                lastModified = info.LastWriteTimeUtc
+                id = result.Id,
+                name = result.Name,
+                size = result.Size,
+                lastModified = result.LastModifiedUtc
             },
             new JsonSerializerOptions { WriteIndented = true });
     }
