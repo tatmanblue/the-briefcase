@@ -36,9 +36,9 @@ Agents are able to search, read, create, and update the files made available thr
 
 ## Status
 
-Version 1.3 — MVP using HTTP and Local file system only.
+Version 2.0 — MVP using HTTP and Local file system only.
 
-__Please note:__ the stdio protocol has been removed as of 1.3.2 and is no longer supported. The Briefcase now only supports the HTTP protocol.
+__Please note:__ the stdio protocol has been removed as of 2.0.0 and is no longer supported. The Briefcase now only supports the HTTP protocol.
 
 ## Setup
 
@@ -95,4 +95,4 @@ The Briefcase also runs a local-only web UI (bound to `127.0.0.1`, never reachab
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-1.3.2
+2.0.0

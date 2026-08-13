@@ -21,8 +21,8 @@
     <!-- Set recommended package metadata -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageId>TheBriefcase</PackageId>
-    <PackageVersion>0.1.0-alpha</PackageVersion>
-    <PackageTags>AI; MCP; server; stdio; files</PackageTags>
+    <PackageVersion>2.0.0</PackageVersion>
+    <PackageTags>AI; MCP; server; http; files</PackageTags>
     <Description>An MCP server that gives agents controlled access to files outside their working directory.</Description>
   </PropertyGroup>
 
