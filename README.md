@@ -36,7 +36,7 @@ Agents are able to search, read, create, and update the files made available thr
 
 ## Status
 
-Version 2.0 — MVP using HTTP and Local file system only.
+Version 2.1 — MVP using HTTP and Local file system only.
 
 __Please note:__ the stdio protocol has been removed as of 2.0.0 and is no longer supported. The Briefcase now only supports the HTTP protocol.
 
@@ -97,4 +97,4 @@ Create and edit are only offered for file extensions on the editable whitelist (
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-2.0.0
+2.1.0
