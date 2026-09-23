@@ -43,7 +43,14 @@ var briefcasePaths = (Environment.GetEnvironmentVariable("BRIEFCASE_PATHS") ?? s
 
 var dataPath = Environment.GetEnvironmentVariable("BRIEFCASE_DATA_PATH") ?? string.Empty;
 
-var newPath = Environment.GetEnvironmentVariable("BRIEFCASE_NEW_PATH")
+// Optional path settings: an empty value (e.g. "BRIEFCASE_NEW_PATH=" as shipped in .env.example)
+// counts as unset, so the documented default applies instead of an empty path.
+static string? OptionalEnv(string name) =>
+    string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name))
+        ? null
+        : Environment.GetEnvironmentVariable(name);
+
+var newPath = OptionalEnv("BRIEFCASE_NEW_PATH")
     ?? (briefcasePaths.Length > 0 ? Path.Combine(briefcasePaths[0], "new") : string.Empty);
 
 if (!string.IsNullOrEmpty(newPath))
@@ -54,7 +61,7 @@ if (!string.IsNullOrEmpty(newPath))
         briefcasePaths = [.. briefcasePaths, newPath];
 }
 
-var ignoreFilePath = Environment.GetEnvironmentVariable("BRIEFCASE_IGNORE_FILE")
+var ignoreFilePath = OptionalEnv("BRIEFCASE_IGNORE_FILE")
     ?? (string.IsNullOrEmpty(dataPath) ? string.Empty : Path.Combine(dataPath, ".briefcase-ignore"));
 
 var listFilesDefaultLimit = int.TryParse(
