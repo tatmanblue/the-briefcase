@@ -99,4 +99,4 @@ Create and edit are only offered for text-based files whose extension is on the 
 Copyright 2026 Matthew Raffel. Licensed under the [Apache License 2.0](LICENSE).
 
 ## File Version
-2.1.0
+2026.10.06
