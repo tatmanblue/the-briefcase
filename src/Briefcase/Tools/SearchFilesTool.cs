@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Briefcase.Configuration;
 using Briefcase.Registry;
 using Briefcase.Search;
+using Briefcase.Services.Content;
 using ModelContextProtocol.Server;
 
 namespace Briefcase.Tools;
@@ -17,19 +18,21 @@ internal class SearchFilesTool
     private readonly ProjectRegistry projectRegistry;
     private readonly AppSettings appSettings;
     private readonly SearchCache searchCache;
+    private readonly FileTypeClassifier classifier;
 
-    public SearchFilesTool(FileRegistry registry, ProjectRegistry projectRegistry, AppSettings appSettings, SearchCache searchCache)
+    public SearchFilesTool(FileRegistry registry, ProjectRegistry projectRegistry, AppSettings appSettings, SearchCache searchCache, FileTypeClassifier classifier)
     {
         this.registry = registry;
         this.projectRegistry = projectRegistry;
         this.appSettings = appSettings;
         this.searchCache = searchCache;
+        this.classifier = classifier;
     }
 
     [McpServerTool(Name = "search_files")]
     [Description(
         "Searches files in the Briefcase by name and/or content. " +
-        "Returns file IDs, names, sizes, last modified timestamps, where the match was found, and project association. " +
+        "Returns file IDs, names, sizes, last modified timestamps, where the match was found, project association, MIME type, and kind. " +
         "Content search covers .md and .txt files only. " +
         "Use 'project' to restrict the search to a specific project, or 'unassigned' to search only files not in any project. " +
         "Archived files are excluded by default; use 'includeArchived' to include them or 'archivedOnly' to search only archived files.")]
@@ -123,6 +126,7 @@ internal class SearchFilesTool
             {
                 Id = entry.Id,
                 Name = entry.Name,
+                AbsolutePath = entry.AbsolutePath,
                 Size = info.Length,
                 LastModified = info.LastWriteTimeUtc,
                 MatchedIn = (nameMatch && contentMatch) ? "both" : (nameMatch ? "name" : "content"),
@@ -147,16 +151,23 @@ internal class SearchFilesTool
             sorted = sorted.Take(effectiveLimit);
 
         return JsonSerializer.Serialize(
-            sorted.Select(r => new
+            sorted.Select(r =>
             {
-                id = r.Id,
-                name = r.Name,
-                size = r.Size,
-                lastModified = r.LastModified,
-                matchedIn = r.MatchedIn,
-                projectId = r.ProjectId,
-                projectName = r.ProjectName,
-                isArchived = r.IsArchived
+                // Classified after limiting so unknown-extension files are only sniffed when returned.
+                var fileType = classifier.Classify(r.Name, r.AbsolutePath);
+                return new
+                {
+                    id = r.Id,
+                    name = r.Name,
+                    size = r.Size,
+                    lastModified = r.LastModified,
+                    matchedIn = r.MatchedIn,
+                    projectId = r.ProjectId,
+                    projectName = r.ProjectName,
+                    isArchived = r.IsArchived,
+                    mimeType = fileType.MimeType,
+                    kind = fileType.KindName
+                };
             }),
             new JsonSerializerOptions { WriteIndented = true });
     }
@@ -202,6 +213,7 @@ internal class SearchFilesTool
     {
         public Guid Id { get; init; }
         public string Name { get; init; } = string.Empty;
+        public string AbsolutePath { get; init; } = string.Empty;
         public long Size { get; init; }
         public DateTime LastModified { get; init; }
         public string MatchedIn { get; init; } = string.Empty;

@@ -6,9 +6,11 @@ using Briefcase.Registry;
 using Briefcase.Search;
 using Briefcase.Services;
 using Briefcase.Services.Content;
+using Briefcase.Services.Shell;
 using Briefcase.Services.Trash;
 using Briefcase.Tools;
 using Briefcase.Watching;
+using Briefcase.Web;
 using Briefcase.Web.Components;
 using DotNetEnv;
 using Microsoft.Extensions.DependencyInjection;
@@ -96,6 +98,14 @@ var editableExtensions = string.IsNullOrWhiteSpace(editableExtensionsRaw)
         .Select(ext => (ext.StartsWith('.') ? ext : "." + ext).ToLowerInvariant())
         .ToArray();
 
+var openBlockedExtensionsRaw = Environment.GetEnvironmentVariable("BRIEFCASE_OPEN_BLOCKED_EXTENSIONS");
+var openBlockedExtensions = string.IsNullOrWhiteSpace(openBlockedExtensionsRaw)
+    ? AppSettings.DEFAULT_OPEN_BLOCKED_EXTENSIONS
+    : openBlockedExtensionsRaw
+        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(ext => (ext.StartsWith('.') ? ext : "." + ext).ToLowerInvariant())
+        .ToArray();
+
 var appSettings = new AppSettings
 {
     BriefcasePaths = briefcasePaths,
@@ -107,7 +117,8 @@ var appSettings = new AppSettings
     SearchMaxFileSizeKb = searchMaxFileSizeKb,
     SearchCacheEnabled = searchCacheEnabled,
     WebPort = webPort,
-    EditableExtensions = editableExtensions
+    EditableExtensions = editableExtensions,
+    OpenBlockedExtensions = openBlockedExtensions
 };
 
 // Validate configuration and exit with a clear message if anything is wrong.
@@ -146,6 +157,7 @@ builder.Services.AddSingleton<FileQueryService>();
 builder.Services.AddSingleton<FileOperationsService>();
 builder.Services.AddSingleton<FileContentService>();
 builder.Services.AddSingleton<ContentRenderer>();
+builder.Services.AddSingleton<FileTypeClassifier>();
 
 if (OperatingSystem.IsWindows())
     builder.Services.AddSingleton<ITrashService, WindowsTrashService>();
@@ -155,6 +167,15 @@ else if (OperatingSystem.IsLinux())
     builder.Services.AddSingleton<ITrashService, LinuxTrashService>();
 else
     builder.Services.AddSingleton<ITrashService, NoOpTrashService>();
+
+if (OperatingSystem.IsWindows())
+    builder.Services.AddSingleton<IShellService, WindowsShellService>();
+else if (OperatingSystem.IsMacOS())
+    builder.Services.AddSingleton<IShellService, MacShellService>();
+else if (OperatingSystem.IsLinux())
+    builder.Services.AddSingleton<IShellService, LinuxShellService>();
+else
+    builder.Services.AddSingleton<IShellService, NoOpShellService>();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -185,6 +206,8 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+FileContentEndpoint.Map(app);
 
 app.MapMcp("/mcp");
 

@@ -26,10 +26,10 @@ Transport: HTTP (stdio was removed in 1.3.2).
 All V1, V1.1, V1.2, and V1.3 features are implemented and the project builds cleanly.
 
 ## Implemented
-- `list_files` MCP tool — returns file IDs, names, sizes, last-modified timestamps, project association, and archive state. No file system paths are exposed. Supports optional `limit`, `sort`, `project`, `unassigned`, `includeArchived`, and `archivedOnly` filters. Server-side default limit is controlled by `BRIEFCASE_LIST_DEFAULT_LIMIT`. Archived files are excluded by default.
-- `read_file` MCP tool — returns file content plus metadata by GUID. Works regardless of archive state.
-- `create_file` MCP tool — agents supply a filename and content; the file is written to `BRIEFCASE_NEW_PATH` and registered immediately. Optionally associates with a project via `projectId`.
-- `update_file` MCP tool — agents supply a GUID and new content; the entire file is replaced in-place. Works regardless of archive state.
+- `list_files` MCP tool — returns file IDs, names, sizes, last-modified timestamps, project association, archive state, `mimeType`, and `kind`. No file system paths are exposed. Supports optional `limit`, `sort`, `project`, `unassigned`, `includeArchived`, and `archivedOnly` filters. Server-side default limit is controlled by `BRIEFCASE_LIST_DEFAULT_LIMIT`. Archived files are excluded by default.
+- `read_file` MCP tool — returns file content plus metadata (incl. `mimeType`, `kind`) by GUID. Text files return text; PNG/JPEG/GIF/WebP images return an MCP image content block; audio returns an audio block; other binaries return metadata only (`contentOmitted: true`). Works regardless of archive state.
+- `create_file` MCP tool — agents supply a filename and content; the file is written to `BRIEFCASE_NEW_PATH` and registered immediately. Optionally associates with a project via `projectId`. Optional `encoding` (`text`|`base64`); text content is refused for binary file types.
+- `update_file` MCP tool — agents supply a GUID and new content; the entire file is replaced in-place. Optional `encoding` (`text`|`base64`); text content is refused for binary file types. Works regardless of archive state.
 - `search_files` MCP tool — searches file names and/or content (`.md`/`.txt` only). Supports `query`, `searchIn`, `matchMode`, `limit`, `sort`, `project`, `unassigned`, `includeArchived`, `archivedOnly`. Archived files are excluded by default.
 - `archive_file` MCP tool — marks a file as archived; excluded from listings and searches by default. File remains readable and project association is preserved.
 - `unarchive_file` MCP tool — restores an archived file to active status.
@@ -45,6 +45,9 @@ All V1, V1.1, V1.2, and V1.3 features are implemented and the project builds cle
   - Project mutations → `notifications/projects/list_changed`
 - `SearchCache` — optional word-level cache for `.md`/`.txt` files; enabled via `BRIEFCASE_SEARCH_CACHE_ENABLED`.
 - `IgnoreRules` — `.briefcase-ignore` file support (gitignore syntax) via `BRIEFCASE_IGNORE_FILE`.
+- `FileTypeClassifier` — single source of truth for a file's MIME type and kind (markdown/text/image/pdf/audio/video/binary). Extension-based via `FileExtensionContentTypeProvider` plus overrides; unknown extensions are sniffed (NUL byte in first 8 KB = binary). Used by the web viewer and the MCP tools.
+- Web viewer — renders by kind (Markdown, text, `<img>`, PDF iframe, `<audio>`/`<video>`, "can't preview" card). Raw bytes are served by GUID from `GET /files/{id}/content` (`nosniff`, CSP `sandbox` except PDFs, `?download=true` for attachment). Edit only for text-based files on the editable list.
+- `IShellService` (Windows/Mac/Linux/NoOp, like `ITrashService`) — web-only "Open in default app" and "Show in folder". Open is refused for `BRIEFCASE_OPEN_BLOCKED_EXTENSIONS` (executables/scripts). Never exposed as an MCP tool.
 
 ## Environment Variables
 | Variable | Required | Description |
@@ -57,6 +60,9 @@ All V1, V1.1, V1.2, and V1.3 features are implemented and the project builds cle
 | `BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB` | No | Files larger than this are skipped during content search. Default = 512. |
 | `BRIEFCASE_SEARCH_CACHE_ENABLED` | No | Set to `true` to enable word-level search cache. Default = false. |
 | `BRIEFCASE_IGNORE_FILE` | No | Path to `.briefcase-ignore` file. Defaults to `{BRIEFCASE_DATA_PATH}/.briefcase-ignore`. |
+| `BRIEFCASE_WEB_PORT` | No | Port for the local web UI (127.0.0.1 only). Default = 5289. |
+| `BRIEFCASE_EDITABLE_EXTENSIONS` | No | Extensions the web UI may create/edit (text-based files only). Default = `.md;.txt;.json`. |
+| `BRIEFCASE_OPEN_BLOCKED_EXTENSIONS` | No | Extensions the web UI will never "Open in default app". Default = built-in executable/script list in `AppSettings`. |
 
 Copy `src/Briefcase/.env.example` to `src/Briefcase/.env` to configure locally.
 
@@ -67,6 +73,8 @@ Copy `src/Briefcase/.env.example` to `src/Briefcase/.env` to configure locally.
   - `Registry/` — `FileRegistry`, `RegistryEntry`, `ProjectRegistry`, `ProjectEntry`
   - `Watching/` — `FileWatcher`, `FileChangedEventArgs`
   - `Notifications/` — `NotificationDispatcher`
+  - `Services/` — `FileQueryService`, `FileContentService`, `FileOperationsService`; `Content/` (`ContentRenderer`, `FileTypeClassifier`), `Shell/` (`IShellService` + per-OS), `Trash/` (`ITrashService` + per-OS)
+  - `Web/` — Blazor components and `FileContentEndpoint`
   - `Search/` — `SearchCache`, `SearchCacheEntry`
   - `Reindex/` — `ReindexService`
   - `Tools/` — `ListFilesTool`, `ReadFileTool`, `CreateFileTool`, `UpdateFileTool`, `SearchFilesTool`, `ReindexTool`, `ArchiveFileTool`, `UnarchiveFileTool`, `CreateProjectTool`, `ListProjectsTool`, `GetProjectTool`, `AddFileToProjectTool`, `RemoveFileFromProjectTool`, `UpdateProjectTool`, `DeleteProjectTool`

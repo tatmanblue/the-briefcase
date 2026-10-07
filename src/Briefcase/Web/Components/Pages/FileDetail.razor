@@ -4,6 +4,8 @@
 @inject ContentRenderer Renderer
 @inject FileOperationsService OperationsService
 @inject FileContentService ContentService
+@inject FileTypeClassifier Classifier
+@inject Briefcase.Services.Shell.IShellService ShellService
 @inject AppSettings Settings
 @inject NavigationManager Nav
 
@@ -30,7 +32,7 @@ else if (entry != null)
     </div>
 
     <div class="toolbar">
-        @if (!editMode)
+        @if (!editMode && fileType?.IsTextBased == true)
         {
             <label class="checkbox">
                 <input type="checkbox" @bind="showRaw" />
@@ -41,10 +43,25 @@ else if (entry != null)
         {
             <button class="btn" @onclick="StartEdit">Edit</button>
         }
+        @if (ShellService.IsSupported && !isOpenBlocked)
+        {
+            <button class="btn" @onclick="OpenInDefaultApp"
+                    title="Open this file with the application your operating system associates with it">Open in default app</button>
+        }
+        @if (ShellService.IsSupported)
+        {
+            <button class="btn" @onclick="ShowInFolder">Show in folder</button>
+        }
+        <a class="btn" href="@($"{contentUrl}&download=true")">Download</a>
         <button class="btn" @onclick="() => OpenAssignProject()">Project</button>
         <button class="btn" @onclick="() => OpenMove()">Move</button>
         <button class="btn btn-danger" @onclick="() => OpenDelete()">Delete</button>
     </div>
+
+    @if (shellError != null)
+    {
+        <p class="error">@shellError</p>
+    }
 
     @if (readError != null)
     {
@@ -64,15 +81,59 @@ else if (entry != null)
             </button>
         </div>
     }
-    else if (showRaw)
+    else if (showRaw && fileType?.IsTextBased == true)
     {
         <pre class="raw-content">@content</pre>
     }
     else
     {
-        <div class="rendered-content">
-            @((MarkupString)renderedHtml)
-        </div>
+        switch (fileType?.Kind)
+        {
+            case FileKind.Markdown:
+            case FileKind.Text:
+                <div class="rendered-content">
+                    @((MarkupString)renderedHtml)
+                </div>
+                break;
+            case FileKind.Image:
+                <div class="media-viewer">
+                    <img src="@contentUrl" alt="@entry.Name" />
+                </div>
+                break;
+            case FileKind.Pdf:
+                <iframe class="pdf-viewer" src="@contentUrl" title="@entry.Name"></iframe>
+                break;
+            case FileKind.Audio:
+                <div class="media-viewer">
+                    <audio controls src="@contentUrl"></audio>
+                </div>
+                break;
+            case FileKind.Video:
+                <div class="media-viewer">
+                    <video controls src="@contentUrl"></video>
+                </div>
+                break;
+            default:
+                <div class="no-preview">
+                    <p>This file type (@fileType?.MimeType) can't be previewed in the browser.</p>
+                    <div class="no-preview-actions">
+                        @if (ShellService.IsSupported && !isOpenBlocked)
+                        {
+                            <button class="btn btn-primary" @onclick="OpenInDefaultApp">Open in default app</button>
+                        }
+                        @if (ShellService.IsSupported)
+                        {
+                            <button class="btn" @onclick="ShowInFolder">Show in folder</button>
+                        }
+                        <a class="btn" href="@($"{contentUrl}&download=true")">Download</a>
+                    </div>
+                    @if (isOpenBlocked)
+                    {
+                        <p class="hint">Opening is disabled for this file type because it can run programs.</p>
+                    }
+                </div>
+                break;
+        }
     }
 }
 
@@ -111,6 +172,11 @@ else if (entry != null)
     private long? fileSize;
     private DateTime? lastModified;
     private string? currentProjectName;
+    private FileTypeInfo? fileType;
+    // Includes the last-write time so the browser refetches images/media after the file changes.
+    private string contentUrl = "";
+    private bool isOpenBlocked;
+    private string? shellError;
 
     private bool moveVisible;
     private bool moveBusy;
@@ -146,10 +212,15 @@ else if (entry != null)
 
         notFound = false;
         readError = null;
-        isEditable = Settings.EditableExtensions.Contains(Path.GetExtension(entry.Name), StringComparer.OrdinalIgnoreCase);
+        shellError = null;
+        content = "";
+        renderedHtml = "";
+        isOpenBlocked = Settings.IsOpenBlocked(entry.Name);
 
         if (!File.Exists(entry.AbsolutePath))
         {
+            fileType = null;
+            isEditable = false;
             readError = $"File '{entry.Name}' is registered but no longer exists on disk.";
             return;
         }
@@ -158,11 +229,22 @@ else if (entry != null)
         fileSize = info.Length;
         lastModified = info.LastWriteTimeUtc;
         currentProjectName = ProjectRegistry.FindProjectForFile(entry.Id)?.projectName;
+        contentUrl = $"/files/{entry.Id}/content?v={info.LastWriteTimeUtc.Ticks}";
+
+        // Text editing only makes sense for text-based files, whatever the editable list says.
+        fileType = Classifier.Classify(entry.Name, entry.AbsolutePath);
+        isEditable = fileType.IsTextBased
+            && Settings.EditableExtensions.Contains(Path.GetExtension(entry.Name), StringComparer.OrdinalIgnoreCase);
+
+        // Binary files are displayed straight from the content endpoint; only text is read here.
+        if (!fileType.IsTextBased)
+            return;
 
         try
         {
             content = File.ReadAllText(entry.AbsolutePath);
-            renderedHtml = Renderer.RenderToHtml(entry.Name, content);
+            if (fileType.Kind is FileKind.Markdown or FileKind.Text)
+                renderedHtml = Renderer.RenderToHtml(entry.Name, content);
         }
         catch (Exception ex)
         {
@@ -198,6 +280,18 @@ else if (entry != null)
         }
 
         Load();
+    }
+
+    private void OpenInDefaultApp()
+    {
+        if (entry is null) return;
+        shellError = OperationsService.OpenInDefaultApp(entry.Id);
+    }
+
+    private void ShowInFolder()
+    {
+        if (entry is null) return;
+        shellError = OperationsService.ShowInFolder(entry.Id);
     }
 
     private static string FormatSize(long? bytes)

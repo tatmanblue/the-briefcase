@@ -1,5 +1,6 @@
 using Briefcase.Configuration;
 using Briefcase.Registry;
+using Briefcase.Services.Content;
 
 namespace Briefcase.Services;
 
@@ -10,7 +11,8 @@ public record FileListItem(
     DateTime? LastModified,
     Guid? ProjectId,
     string? ProjectName,
-    bool IsArchived);
+    bool IsArchived,
+    FileTypeInfo? FileType = null);
 
 public record FileQueryOptions(
     int? Limit = null,
@@ -25,12 +27,14 @@ public class FileQueryService
     private readonly FileRegistry registry;
     private readonly ProjectRegistry projectRegistry;
     private readonly AppSettings appSettings;
+    private readonly FileTypeClassifier classifier;
 
-    public FileQueryService(FileRegistry registry, ProjectRegistry projectRegistry, AppSettings appSettings)
+    public FileQueryService(FileRegistry registry, ProjectRegistry projectRegistry, AppSettings appSettings, FileTypeClassifier classifier)
     {
         this.registry = registry;
         this.projectRegistry = projectRegistry;
         this.appSettings = appSettings;
+        this.classifier = classifier;
     }
 
     public (IReadOnlyList<FileListItem>? Files, string? Error) GetFiles(FileQueryOptions options)
@@ -96,6 +100,13 @@ public class FileQueryService
         if (effectiveLimit > 0)
             sorted = sorted.Take(effectiveLimit);
 
-        return (sorted.ToList(), null);
+        // Classified after limiting so unknown-extension files are only sniffed when actually returned.
+        return (sorted.Select(f => f with { FileType = Classify(f) }).ToList(), null);
+    }
+
+    private FileTypeInfo Classify(FileListItem file)
+    {
+        var absolutePath = file.Size.HasValue ? registry.GetById(file.Id)?.AbsolutePath : null;
+        return classifier.Classify(file.Name, absolutePath);
     }
 }

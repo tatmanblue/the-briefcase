@@ -51,9 +51,9 @@ See [Tools Reference](docs/tools.md) for full parameter and return-value details
 
 **File Tools**
 - `list_files` — discover all files known to The Briefcase; supports filtering by project, archive state, and sort order
-- `read_file` — retrieve a file's content by its GUID
-- `create_file` — write a new file into The Briefcase
-- `update_file` — replace the full content of an existing file
+- `read_file` — retrieve a file's content by its GUID (images are returned as MCP image content)
+- `create_file` — write a new file into The Briefcase (text, or base64 for binary files)
+- `update_file` — replace the full content of an existing file (text, or base64 for binary files)
 - `search_files` — search files by name, content, or both; supports archive filtering
 - `archive_file` — soft-hide a file from listings and searches; file remains readable by ID
 - `unarchive_file` — restore an archived file to active status
@@ -76,7 +76,9 @@ The Briefcase watches configured directories in real time and sends standard MCP
 
 The Briefcase also runs a local-only web UI (bound to `127.0.0.1`, never reachable off-box) alongside the MCP server, letting a human browse the same files agents see. Open `http://127.0.0.1:5289` (or your configured `BRIEFCASE_WEB_PORT`) to list files, view rendered Markdown, create new files, edit existing ones, assign files to projects, and move or delete files. Move and delete are only available through the web UI — they are not exposed to agents, and delete sends files to the OS Recycle Bin/Trash rather than deleting them permanently.
 
-Create and edit are only offered for file extensions on the editable whitelist (`.md`, `.txt`, `.json` by default; configurable via `BRIEFCASE_EDITABLE_EXTENSIONS`) — other file types stay view-only in the browser. This whitelist only affects the web UI; agents can still `create_file`/`update_file` any file regardless of extension. If an agent updates a file while it's open for editing in the browser, the agent's change wins — saving from the browser is rejected with a conflict message rather than overwriting it.
+The viewer adapts to the file type: Markdown is rendered, text is shown as-is, images, PDFs, audio and video are displayed inline, and anything else gets a "can't be previewed" card. Every file can be downloaded, opened in its default desktop application, or revealed in Explorer / Finder / your Linux file manager ("Show in folder"). These actions run on the machine hosting The Briefcase — which is your own desktop, since the web UI only listens on `127.0.0.1`. "Open in default app" is never offered for executables and scripts (`.exe`, `.bat`, `.ps1`, `.sh`, `.command`, `.app`, ...), because the OS default action for those is to run them; the list is configurable via `BRIEFCASE_OPEN_BLOCKED_EXTENSIONS`.
+
+Create and edit are only offered for text-based files whose extension is on the editable whitelist (`.md`, `.txt`, `.json` by default; configurable via `BRIEFCASE_EDITABLE_EXTENSIONS`) — other file types stay view-only in the browser. This whitelist only affects the web UI; agents can `create_file`/`update_file` any file regardless of extension, using `encoding: "base64"` for binary files such as images. If an agent updates a file while it's open for editing in the browser, the agent's change wins — saving from the browser is rejected with a conflict message rather than overwriting it.
 
 > The web UI's static assets require a **published** build (`dotnet publish`) — see [Setup](#setup). Running via `dotnet run` or a raw `dotnet build` output serves the page but leaves it non-interactive.
 

@@ -24,12 +24,16 @@ Returns all files currently known to The Briefcase. No file system paths are inc
     "lastModified": "2026-04-24T10:00:00Z",
     "projectId": "a1b2c3d4-...",
     "projectName": "My Project",
-    "isArchived": false
+    "isArchived": false,
+    "mimeType": "text/plain",
+    "kind": "text"
   }
 ]
 ```
 
 `projectId` and `projectName` are `null` when the file is not associated with any project. `isArchived` is always present.
+
+`kind` is one of `markdown`, `text`, `image`, `pdf`, `audio`, `video`, `binary`. It is determined from the file extension; files with an unrecognised extension are sniffed (no NUL bytes in the first 8 KB = `text`, otherwise `binary`).
 
 ---
 
@@ -40,16 +44,36 @@ Reads the content of a file by its ID. Works on any file regardless of archive s
 **Parameters:**
 - `id` — the GUID returned by `list_files`
 
-**Returns:**
+**Returns** — depends on the file's type:
+
+*Text-based files* (`kind` `markdown` or `text`, plus SVG images) — a single text block:
 ```json
 {
   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "name": "notes.txt",
   "size": 1024,
   "lastModified": "2026-04-24T10:00:00Z",
+  "mimeType": "text/plain",
+  "kind": "text",
   "content": "..."
 }
 ```
+
+*PNG, JPEG, GIF, WebP images* — a text block with the metadata below, followed by an MCP `image` content block carrying the file's bytes. *Audio files* — the same, with an `audio` content block.
+```json
+{
+  "id": "...",
+  "name": "diagram.png",
+  "size": 48213,
+  "lastModified": "2026-04-24T10:00:00Z",
+  "mimeType": "image/png",
+  "kind": "image",
+  "contentOmitted": false,
+  "note": "File content is attached as image content."
+}
+```
+
+*Other binary files* (PDFs, archives, other image formats, ...) — the metadata only, with `"contentOmitted": true`.
 
 ---
 
@@ -59,8 +83,9 @@ Creates a new file in the Briefcase. The file is written to `BRIEFCASE_NEW_PATH`
 
 **Parameters:**
 - `name` — filename including extension (e.g. `notes.txt`). Path separators are stripped.
-- `content` — full content of the new file.
+- `content` — full content of the new file: plain text, or base64-encoded bytes when `encoding` is `"base64"`.
 - `projectId` *(optional)* — GUID of a project to associate the file with. The call fails if the ID does not exist.
+- `encoding` *(optional)* — `"text"` (default) or `"base64"`. Binary file types (e.g. `.png`, `.pdf`) must be written with `"base64"`; text content for them is refused so the file isn't silently corrupted. Names with an unrecognised extension accept text.
 
 **Returns:**
 ```json
@@ -81,7 +106,8 @@ Replaces the full content of an existing file. Works on any file in the Briefcas
 
 **Parameters:**
 - `id` — the GUID returned by `list_files` or `create_file`
-- `content` — the new full content. The entire existing content is replaced.
+- `content` — the new full content: plain text, or base64-encoded bytes when `encoding` is `"base64"`. The entire existing content is replaced.
+- `encoding` *(optional)* — `"text"` (default) or `"base64"`. Text content is refused for binary files (`kind` other than `markdown`/`text`, except SVG).
 
 **Returns:**
 ```json
@@ -121,7 +147,9 @@ Searches for files by name, content, or both. Content search covers `.md` and `.
     "matchedIn": "name",
     "projectId": "a1b2c3d4-...",
     "projectName": "My Project",
-    "isArchived": false
+    "isArchived": false,
+    "mimeType": "text/markdown",
+    "kind": "markdown"
   }
 ]
 ```

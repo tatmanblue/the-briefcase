@@ -1,13 +1,16 @@
 using Briefcase.Configuration;
 using Briefcase.Registry;
+using Briefcase.Services.Shell;
 using Briefcase.Services.Trash;
 
 namespace Briefcase.Services;
 
-// Web-only file operations (move, delete, project assignment). Move and delete are deliberately
-// not exposed as MCP tools — agents keep the tools they have today (archive_file is the only
-// agent-facing removal mechanism). Project assignment mirrors create_project/add_file_to_project,
-// which are already agent-accessible, so it carries no extra safety concerns.
+// Web-only file operations (move, delete, project assignment, open / show in folder). Move and
+// delete are deliberately not exposed as MCP tools — agents keep the tools they have today
+// (archive_file is the only agent-facing removal mechanism). Open / show in folder launch programs
+// on the user's desktop and must never be agent-accessible. Project assignment mirrors
+// create_project/add_file_to_project, which are already agent-accessible, so it carries no extra
+// safety concerns.
 //
 // These actions used to notify the connected MCP client via NotificationDispatcher so an agent's
 // view would refresh after a human made a change from the web UI. Under the HTTP transport there
@@ -20,17 +23,20 @@ public class FileOperationsService
     private readonly ProjectRegistry projectRegistry;
     private readonly AppSettings appSettings;
     private readonly ITrashService trashService;
+    private readonly IShellService shellService;
 
     public FileOperationsService(
         FileRegistry fileRegistry,
         ProjectRegistry projectRegistry,
         AppSettings appSettings,
-        ITrashService trashService)
+        ITrashService trashService,
+        IShellService shellService)
     {
         this.fileRegistry = fileRegistry;
         this.projectRegistry = projectRegistry;
         this.appSettings = appSettings;
         this.trashService = trashService;
+        this.shellService = shellService;
     }
 
     public async Task<string?> MoveFile(Guid id, string destinationRoot, string? subfolder)
@@ -74,6 +80,49 @@ public class FileOperationsService
 
         fileRegistry.Rename(entry.AbsolutePath, destinationPath);
         return null;
+    }
+
+    // Opens the file with the OS's associated application. Refused for extensions in
+    // OpenBlockedExtensions -- for executables and scripts the OS default action is to run them,
+    // and agents can put arbitrary files in the briefcase.
+    public string? OpenInDefaultApp(Guid id)
+    {
+        var entry = fileRegistry.GetById(id);
+        if (entry is null)
+            return "File not found.";
+
+        if (appSettings.IsOpenBlocked(entry.Name))
+            return $"'{entry.Name}' can't be opened from the web UI because files of this type can run programs. Use Show in folder or Download instead.";
+
+        return RunShellAction(entry, shellService.Open, "open");
+    }
+
+    public string? ShowInFolder(Guid id)
+    {
+        var entry = fileRegistry.GetById(id);
+        if (entry is null)
+            return "File not found.";
+
+        return RunShellAction(entry, shellService.ShowInFolder, "show");
+    }
+
+    private string? RunShellAction(RegistryEntry entry, Action<string> action, string verb)
+    {
+        if (!shellService.IsSupported)
+            return "This action is not supported on this operating system.";
+
+        if (!File.Exists(entry.AbsolutePath))
+            return $"File '{entry.Name}' is registered but no longer exists on disk.";
+
+        try
+        {
+            action(entry.AbsolutePath);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return $"Failed to {verb} file '{entry.Name}': {ex.Message}";
+        }
     }
 
     public async Task<string?> DeleteFile(Guid id)

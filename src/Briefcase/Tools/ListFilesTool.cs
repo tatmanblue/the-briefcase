@@ -16,7 +16,7 @@ internal class ListFilesTool
 
     [McpServerTool(Name = "list_files")]
     [Description(
-        "Lists files available in the Briefcase. Returns file IDs, names, sizes, last modified timestamps, and project association. " +
+        "Lists files available in the Briefcase. Returns file IDs, names, sizes, last modified timestamps, project association, MIME type, and kind (markdown, text, image, pdf, audio, video, binary). " +
         "Use the returned ID to read a file's content. " +
         "Results are sorted newest-modified first by default. " +
         "Use 'limit' to control how many results are returned and 'sort' to control ordering. " +
@@ -52,7 +52,9 @@ internal class ListFilesTool
             lastModified = f.LastModified,
             projectId = f.ProjectId,
             projectName = f.ProjectName,
-            isArchived = f.IsArchived
+            isArchived = f.IsArchived,
+            mimeType = f.FileType?.MimeType,
+            kind = f.FileType?.KindName
         });
 
         return JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
