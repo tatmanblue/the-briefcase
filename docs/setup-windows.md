@@ -51,9 +51,37 @@ Once the server is running, open `http://127.0.0.1:5289` (or your configured `BR
 
 ## 4. Build for use
 
+### Recommended: install to run in the background
+
+From the repo root, in any terminal (cmd, Git Bash, Windows Terminal — no PowerShell needed):
+
+```
+dotnet run scripts/install-windows.cs
+```
+
+This publishes a self-contained build, installs it to `%LOCALAPPDATA%\Briefcase\app` together with a copy of
+`src\Briefcase\.env`, and registers a Scheduled Task named `Briefcase` that starts it at logon with no console
+window and restarts it if it ever exits. It then checks that `/mcp` responds. No admin rights are needed, and it
+runs in your own desktop session, so "Open in default app", "Show in folder" and the Recycle Bin work normally.
+
+| Command | What it does |
+|---|---|
+| `dotnet run scripts/install-windows.cs` | Publish, install or update, and start. Re-run after pulling changes. |
+| `dotnet run scripts/install-windows.cs -- restart` | Copy `src\Briefcase\.env` again and restart, without rebuilding. Use after editing `.env`. |
+| `dotnet run scripts/install-windows.cs -- stop` | Stop the server (it starts again at next logon). |
+| `dotnet run scripts/install-windows.cs -- uninstall` | Stop it, remove the task and `%LOCALAPPDATA%\Briefcase`. |
+
+`src\Briefcase\.env` stays the only file you edit. Server output goes to `%LOCALAPPDATA%\Briefcase\logs\briefcase.log`.
+Your files and `BRIEFCASE_DATA_PATH` are never touched by install, restart or uninstall. Because the running copy lives
+outside the repo, you can keep building in the repo while it runs.
+
+### Manual
+
 ```
 dotnet publish src/Briefcase/Briefcase.csproj -r win-x64 -o publish
 ```
+
+Then run `publish\Briefcase.exe` in a terminal and leave it open.
 
 > **Why publish, not `dotnet run`?** The web interface's static assets (its JS/CSS) are only
 > guaranteed available in a published build. `dotnet run` and a plain `dotnet build` output run in
@@ -63,7 +91,7 @@ dotnet publish src/Briefcase/Briefcase.csproj -r win-x64 -o publish
 
 ## 5. Wire it into your MCP client
 
-The server speaks HTTP, not stdio — it's a persistent process, not something your MCP client spawns on demand. Start it first (run `publish\Briefcase.exe` in a terminal, or set it up to run at login) and leave it running, then point your client at its `/mcp` endpoint.
+The server speaks HTTP, not stdio — it's a persistent process, not something your MCP client spawns on demand. Start it first (install it with `scripts/install-windows.cs`, or run `publish\Briefcase.exe` in a terminal) and leave it running, then point your client at its `/mcp` endpoint.
 
 **Claude Code** — add to your `claude_mcp_config.json` (or project-level `.mcp.json`):
 
@@ -93,4 +121,4 @@ The server speaks HTTP, not stdio — it's a persistent process, not something y
 
 Adjust the port if you set `BRIEFCASE_WEB_PORT` to something other than the default 5289.
 
-Re-run the `dotnet publish` command above after pulling changes to pick up updates, then restart the server and your MCP client's connection to it.
+After pulling changes, re-run `dotnet run scripts/install-windows.cs` (or, for a manual setup, the `dotnet publish` command above and restart the server), then reconnect your MCP client.
