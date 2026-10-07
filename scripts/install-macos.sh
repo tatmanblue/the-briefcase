@@ -96,6 +96,12 @@ PLIST
 UID_GUI="gui/$(id -u)"
 echo "==> Reloading LaunchAgent"
 launchctl bootout "$UID_GUI/$LABEL" 2>/dev/null || true
+# bootout is async; wait for the old instance to fully unload before bootstrapping,
+# otherwise bootstrap fails with "5: Input/output error".
+for _ in {1..20}; do
+    launchctl print "$UID_GUI/$LABEL" >/dev/null 2>&1 || break
+    sleep 0.5
+done
 launchctl bootstrap "$UID_GUI" "$PLIST_PATH"
 launchctl enable "$UID_GUI/$LABEL"
 
