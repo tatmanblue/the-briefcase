@@ -208,3 +208,41 @@ a.btn {
     color: var(--muted);
     font-size: 0.85rem;
 }
+
+/* CSV / TSV table view */
+.table-note {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.table-scroll {
+    overflow: auto;
+    max-height: 75vh;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.data-table {
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.data-table th,
+.data-table td {
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.5rem;
+    text-align: left;
+    white-space: pre-wrap;
+    vertical-align: top;
+}
+
+.data-table th {
+    position: sticky;
+    top: 0;
+    background: Canvas;
+}
+
+.rendered-content pre code.hljs {
+    border-radius: 4px;
+}

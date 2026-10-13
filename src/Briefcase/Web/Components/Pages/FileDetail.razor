@@ -8,6 +8,7 @@
 @inject Briefcase.Services.Shell.IShellService ShellService
 @inject AppSettings Settings
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>@(entry?.Name ?? "File")</PageTitle>
 
@@ -63,6 +64,14 @@ else if (entry != null)
         <p class="error">@shellError</p>
     }
 
+    @if (isTruncated)
+    {
+        <p class="hint">
+            This file is larger than the @FormatSize(AppSettings.ToByteLimit(Settings.ViewMaxTextKb)) view limit,
+            so only the beginning is shown and editing is disabled. Download it to see the whole file.
+        </p>
+    }
+
     @if (readError != null)
     {
         <p class="error">@readError</p>
@@ -91,7 +100,7 @@ else if (entry != null)
         {
             case FileKind.Markdown:
             case FileKind.Text:
-                <div class="rendered-content">
+                <div class="rendered-content" @ref="renderedContainer">
                     @((MarkupString)renderedHtml)
                 </div>
                 break;
@@ -168,6 +177,8 @@ else if (entry != null)
     private string content = "";
     private string renderedHtml = "";
     private string? readError;
+    private bool isTruncated;
+    private ElementReference renderedContainer;
     private bool showRaw;
     private long? fileSize;
     private DateTime? lastModified;
@@ -215,6 +226,7 @@ else if (entry != null)
         shellError = null;
         content = "";
         renderedHtml = "";
+        isTruncated = false;
         isOpenBlocked = Settings.IsOpenBlocked(entry.Name);
 
         if (!File.Exists(entry.AbsolutePath))
@@ -242,13 +254,35 @@ else if (entry != null)
 
         try
         {
-            content = File.ReadAllText(entry.AbsolutePath);
+            (content, isTruncated) = TextFileReader.Read(entry.AbsolutePath, AppSettings.ToByteLimit(Settings.ViewMaxTextKb));
+            // Saving a truncated preview would cut the file short on disk.
+            if (isTruncated)
+                isEditable = false;
             if (fileType.Kind is FileKind.Markdown or FileKind.Text)
-                renderedHtml = Renderer.RenderToHtml(entry.Name, content);
+                renderedHtml = Renderer.RenderToHtml(entry.AbsolutePath, fileType, content);
         }
         catch (Exception ex)
         {
             readError = $"Failed to read file '{entry.Name}': {ex.Message}";
+        }
+    }
+
+    // highlight.js runs over the rendered HTML in the browser. It's invoked after every render
+    // because Blazor recreates the content (e.g. after toggling "Show raw source"); blocks that are
+    // already highlighted are skipped on the JS side.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var showingRendered = !editMode && !showRaw && readError == null && renderedHtml.Length > 0;
+        if (!showingRendered)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("briefcase.highlight", renderedContainer);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit closed (tab navigated away) -- nothing to highlight.
         }
     }
 

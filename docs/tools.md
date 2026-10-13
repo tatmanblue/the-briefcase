@@ -75,6 +75,8 @@ Reads the content of a file by its ID. Works on any file regardless of archive s
 
 *Other binary files* (PDFs, archives, other image formats, ...) — the metadata only, with `"contentOmitted": true`.
 
+*Files over the size limit* (`BRIEFCASE_READ_MAX_KB`, default 100 MB) — whatever their type, the metadata only, with `"contentOmitted": true` and a `note` giving the limit.
+
 ---
 
 ### `create_file`

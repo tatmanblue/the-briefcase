@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Briefcase.Configuration;
 using Briefcase.Registry;
 using Briefcase.Services.Content;
 using ModelContextProtocol.Protocol;
@@ -18,11 +19,13 @@ internal class ReadFileTool
 
     private readonly FileRegistry registry;
     private readonly FileTypeClassifier classifier;
+    private readonly long? maxReadBytes;
 
-    public ReadFileTool(FileRegistry registry, FileTypeClassifier classifier)
+    public ReadFileTool(FileRegistry registry, FileTypeClassifier classifier, AppSettings settings)
     {
         this.registry = registry;
         this.classifier = classifier;
+        maxReadBytes = AppSettings.ToByteLimit(settings.ReadMaxKb);
     }
 
     [McpServerTool(Name = "read_file")]
@@ -31,6 +34,7 @@ internal class ReadFileTool
         "Text files (kind 'markdown' or 'text', and SVG images) return their text in 'content'. " +
         "PNG, JPEG, GIF and WebP images are returned as image content alongside the metadata; audio files as audio content. " +
         "Other binary files (PDFs, archives, ...) return metadata only, with contentOmitted set to true. " +
+        "Files over the server's size limit also return metadata only, with contentOmitted set to true and a note giving the limit. " +
         "Use list_files to discover available file IDs.")]
     public CallToolResult ReadFile(
         [Description("The file ID (GUID) returned by list_files.")] Guid id)
@@ -44,6 +48,21 @@ internal class ReadFileTool
 
         var info = new FileInfo(entry.AbsolutePath);
         var fileType = classifier.Classify(entry.Name, entry.AbsolutePath);
+
+        if (info.Length > maxReadBytes)
+        {
+            return Json(new
+            {
+                id = entry.Id,
+                name = entry.Name,
+                size = info.Length,
+                lastModified = info.LastWriteTimeUtc,
+                mimeType = fileType.MimeType,
+                kind = fileType.KindName,
+                contentOmitted = true,
+                note = $"File is larger than the server's read limit ({maxReadBytes} bytes); content is not returned."
+            });
+        }
 
         try
         {

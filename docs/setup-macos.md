@@ -37,6 +37,12 @@ BRIEFCASE_SEARCH_DEFAULT_LIMIT=25
 # Files larger than this (in KB) are skipped during content search (optional, default 512)
 BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB=512
 
+# Text files larger than this (in KB) are shown truncated in the web UI (optional, default 102400 = 100 MB)
+BRIEFCASE_VIEW_MAX_TEXT_KB=102400
+
+# Files larger than this (in KB) are returned by read_file as metadata only (optional, default 102400 = 100 MB)
+BRIEFCASE_READ_MAX_KB=102400
+
 # Enables the word-set cache for content search (optional, default false)
 # When true, reindex_files rebuilds this cache so subsequent searches are faster
 BRIEFCASE_SEARCH_CACHE_ENABLED=false

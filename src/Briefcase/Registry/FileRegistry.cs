@@ -51,6 +51,15 @@ public class FileRegistry
             return entriesById.TryGetValue(id, out var entry) ? entry : null;
     }
 
+    public RegistryEntry? GetByPath(string absolutePath)
+    {
+        absolutePath = NormalizePath(absolutePath);
+        lock (lockObject)
+            return pathToId.TryGetValue(absolutePath, out var id) && entriesById.TryGetValue(id, out var entry)
+                ? entry
+                : null;
+    }
+
     public Guid? AddOrUpdate(string absolutePath)
     {
         absolutePath = NormalizePath(absolutePath);

@@ -5,11 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>The Briefcase</title>
     <base href="/" />
+    <link rel="stylesheet" href="lib/highlightjs/styles/github.min.css" media="(prefers-color-scheme: light)" />
+    <link rel="stylesheet" href="lib/highlightjs/styles/github-dark.min.css" media="(prefers-color-scheme: dark)" />
     <link rel="stylesheet" href="css/site.css" />
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
     <Routes @rendermode="InteractiveServer" />
+    <script src="lib/highlightjs/highlight.min.js"></script>
+    <script src="lib/highlightjs/languages/powershell.min.js"></script>
+    <script src="lib/highlightjs/languages/dos.min.js"></script>
+    <script src="lib/highlightjs/languages/dockerfile.min.js"></script>
+    <script src="js/briefcase.js"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>

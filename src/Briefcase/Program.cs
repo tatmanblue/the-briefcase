@@ -81,6 +81,16 @@ var searchMaxFileSizeKb = int.TryParse(
     ? parsedSearchMaxSize
     : 512;
 
+var viewMaxTextKb = int.TryParse(
+    Environment.GetEnvironmentVariable("BRIEFCASE_VIEW_MAX_TEXT_KB"), out var parsedViewMaxText)
+    ? parsedViewMaxText
+    : AppSettings.DEFAULT_MAX_FILE_SIZE_KB;
+
+var readMaxKb = int.TryParse(
+    Environment.GetEnvironmentVariable("BRIEFCASE_READ_MAX_KB"), out var parsedReadMax)
+    ? parsedReadMax
+    : AppSettings.DEFAULT_MAX_FILE_SIZE_KB;
+
 var searchCacheEnabled = string.Equals(
     Environment.GetEnvironmentVariable("BRIEFCASE_SEARCH_CACHE_ENABLED"), "true",
     StringComparison.OrdinalIgnoreCase);
@@ -116,6 +126,8 @@ var appSettings = new AppSettings
     SearchDefaultLimit = searchDefaultLimit,
     SearchMaxFileSizeKb = searchMaxFileSizeKb,
     SearchCacheEnabled = searchCacheEnabled,
+    ViewMaxTextKb = viewMaxTextKb,
+    ReadMaxKb = readMaxKb,
     WebPort = webPort,
     EditableExtensions = editableExtensions,
     OpenBlockedExtensions = openBlockedExtensions

@@ -46,7 +46,7 @@ All V1, V1.1, V1.2, and V1.3 features are implemented and the project builds cle
 - `SearchCache` — optional word-level cache for `.md`/`.txt` files; enabled via `BRIEFCASE_SEARCH_CACHE_ENABLED`.
 - `IgnoreRules` — `.briefcase-ignore` file support (gitignore syntax) via `BRIEFCASE_IGNORE_FILE`.
 - `FileTypeClassifier` — single source of truth for a file's MIME type and kind (markdown/text/image/pdf/audio/video/binary). Extension-based via `FileExtensionContentTypeProvider` plus overrides; unknown extensions are sniffed (NUL byte in first 8 KB = binary). Used by the web viewer and the MCP tools.
-- Web viewer — renders by kind (Markdown, text, `<img>`, PDF iframe, `<audio>`/`<video>`, "can't preview" card). Raw bytes are served by GUID from `GET /files/{id}/content` (`nosniff`, CSP `sandbox` except PDFs, `?download=true` for attachment). Edit only for text-based files on the editable list.
+- Web viewer — renders by kind (Markdown, text, `<img>`, PDF iframe, `<audio>`/`<video>`, "can't preview" card). Raw bytes are served by GUID from `GET /files/{id}/content` (`nosniff`, CSP `sandbox` except PDFs, `?download=true` for attachment). Edit only for text-based files on the editable list. Markdown links/images that resolve to registered files are rewritten to the viewer/content endpoint; CSV/TSV render as a table (first 1,000 rows); code is syntax-highlighted client-side with vendored highlight.js (`wwwroot/lib/highlightjs`, files up to 1 MB). Text over `BRIEFCASE_VIEW_MAX_TEXT_KB` is shown truncated and not editable.
 - `IShellService` (Windows/Mac/Linux/NoOp, like `ITrashService`) — web-only "Open in default app" and "Show in folder". Open is refused for `BRIEFCASE_OPEN_BLOCKED_EXTENSIONS` (executables/scripts). Never exposed as an MCP tool.
 
 ## Environment Variables
@@ -59,6 +59,8 @@ All V1, V1.1, V1.2, and V1.3 features are implemented and the project builds cle
 | `BRIEFCASE_SEARCH_DEFAULT_LIMIT` | No | Default max results for `search_files`. Default = 25. |
 | `BRIEFCASE_SEARCH_MAX_FILE_SIZE_KB` | No | Files larger than this are skipped during content search. Default = 512. |
 | `BRIEFCASE_SEARCH_CACHE_ENABLED` | No | Set to `true` to enable word-level search cache. Default = false. |
+| `BRIEFCASE_VIEW_MAX_TEXT_KB` | No | Text files larger than this are shown truncated (and not editable) in the web UI. Default = 102400 (100 MB). Zero or negative = no limit. |
+| `BRIEFCASE_READ_MAX_KB` | No | Files larger than this are returned by `read_file` as metadata only (`contentOmitted: true`). Default = 102400 (100 MB). Zero or negative = no limit. |
 | `BRIEFCASE_IGNORE_FILE` | No | Path to `.briefcase-ignore` file. Defaults to `{BRIEFCASE_DATA_PATH}/.briefcase-ignore`. |
 | `BRIEFCASE_WEB_PORT` | No | Port for the local web UI (127.0.0.1 only). Default = 5289. |
 | `BRIEFCASE_EDITABLE_EXTENSIONS` | No | Extensions the web UI may create/edit (text-based files only). Default = `.md;.txt;.json`. |
